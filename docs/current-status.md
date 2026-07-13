@@ -20,7 +20,7 @@ Este archivo es el snapshot *técnico/operativo* para que un agente nuevo sepa e
   Historial relevante:
   - 2026-07-09: se descubrió que `ANTHROPIC_API_KEY` no estaba en el entorno `Development`, causa raíz de que `vercel dev` local fallara. Se agregó y se confirmó de punta a punta (`POST /api/generate` → HTTP 200).
   - **2026-07-12: se rotó la clave completa.** La clave vieja (la que había quedado expuesta en el historial de una sesión de Code, pendiente documentado desde antes de este arnés) se generó de nuevo en console.anthropic.com por Manuel directamente (nunca pasó por el chat), se reemplazó en `web/.env.local`, se removió de los 3 entornos en Vercel (`vercel env rm`) y se volvió a subir la nueva (`vercel env add`, leyendo el valor de `.env.local` vía pipe para que nunca apareciera en la salida de ninguna herramienta). Producción se redesplegó (`vercel --prod`) para que sirviera con la clave nueva de inmediato. Confirmado con `POST /api/generate` local (HTTP 200) y con `bash scripts/verify.sh --network` contra producción (0 fallos).
-  - **Pendiente, requiere acción manual de Manuel:** revocar/borrar la clave vieja en console.anthropic.com. Ningún comando de Vercel puede invalidar una clave de Anthropic, solo dejar de usarla.
+  - **2026-07-12 (mismo día): Manuel confirmó que ya revocó la clave vieja en console.anthropic.com.** Rotación cerrada del todo, no queda ninguna acción pendiente sobre esto.
 
 ## Funcionalidad de la app (`web/`)
 
@@ -29,7 +29,7 @@ Confirmado por inspección de código, no solo por lo que dice `lab/project_stat
 - Navegación de 8 etapas, persistencia en `localStorage`.
 - `POST /api/generate` acepta 4 tareas: `friccion`, `pregunta`, `mapa`, `divulgacion`. Devuelve 500 con `{"error":"El servidor no tiene configurada la clave de la API."}` si `ANTHROPIC_API_KEY` no está en el entorno donde corre.
 - `POST /api/search` motor bibliométrico vía OpenAlex + Claude, sin inventar citas.
-- Probado en esta sesión con `curl` directo contra `vercel dev` local: el endpoint responde y devuelve el error esperado cuando la clave falta (antes del fix); no se volvió a probar con la clave ya disponible en Development porque el `env pull` quedó pendiente (ver arriba).
+- Probado con `curl` directo contra `vercel dev` local, ambos escenarios: el endpoint devuelve el error esperado cuando la clave falta, y devuelve HTTP 200 con contenido real una vez la clave está disponible (confirmado de nuevo tras la rotación del 2026-07-12).
 
 ## Verificación
 
@@ -39,7 +39,6 @@ Confirmado por inspección de código, no solo por lo que dice `lab/project_stat
 
 ## Pendientes activos
 
-- **Revocar la clave vieja de Anthropic** en console.anthropic.com (ver arriba, la rotación del lado de Vercel/código ya está hecha, falta este último paso manual).
 - Definir límite de gasto mensual en la consola de Anthropic.
 - Generar el QR hacia la URL de producción elegida.
 - Decidir cuál de los 3 alias de Vercel es "el" link oficial para el QR (`web-beta-hazel-49.vercel.app` es el que se usa hoy en la práctica, pero no se fijó explícitamente con `vercel alias set`).

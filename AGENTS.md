@@ -79,6 +79,6 @@ Antes de terminar cualquier sesión de trabajo en este repo:
 
 ## Riesgos conocidos activos (no resolver sin confirmar con Manuel)
 
-- `ANTHROPIC_API_KEY` se rotó el 2026-07-12 (clave nueva en los 3 entornos de Vercel, producción redesplegada, confirmado funcionando). **Falta un último paso manual:** revocar la clave vieja en console.anthropic.com, eso no se puede hacer desde aquí. Ver `docs/current-status.md`.
+- `ANTHROPIC_API_KEY` se rotó el 2026-07-12 (clave nueva en los 3 entornos de Vercel, producción redesplegada, confirmado funcionando) y la clave vieja ya fue revocada por Manuel en console.anthropic.com el mismo día. Rotación cerrada del todo, no hay acción pendiente aquí.
 - No hay límite de gasto mensual configurado en la consola de Anthropic para una app pública vía QR.
 - El QR final todavía no existe (ni el link "canónico": hay 3 alias de Vercel apuntando al mismo deployment, ver `docs/current-status.md`).

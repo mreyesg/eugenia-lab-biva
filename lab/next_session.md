@@ -40,7 +40,7 @@ Código en la carpeta `web/`. El artefacto viejo de Claude.ai (`app/biblioteca_v
 
 ## Pendientes / higiene
 
-- ~~**Rotar la `ANTHROPIC_API_KEY`**: quedó visible en el historial de una sesión de Code. Crear una nueva en console.anthropic.com, actualizarla en Vercel (Settings del proyecto, entorno Production) y en `web/.env.local`, y borrar la anterior.~~ **Hecho 2026-07-12:** clave nueva generada por Manuel directamente en console.anthropic.com (nunca pasó por el chat), actualizada en `web/.env.local` y en los 3 entornos de Vercel, producción redesplegada. Confirmado funcionando. Detalle en `docs/current-status.md`. **Falta solo:** revocar la clave vieja en console.anthropic.com, eso no se puede hacer desde Vercel/código.
+- ~~**Rotar la `ANTHROPIC_API_KEY`**: quedó visible en el historial de una sesión de Code. Crear una nueva en console.anthropic.com, actualizarla en Vercel (Settings del proyecto, entorno Production) y en `web/.env.local`, y borrar la anterior.~~ **Hecho 2026-07-12:** clave nueva generada por Manuel directamente en console.anthropic.com (nunca pasó por el chat), actualizada en `web/.env.local` y en los 3 entornos de Vercel, producción redesplegada, y la clave vieja ya revocada por Manuel el mismo día. Rotación cerrada del todo. Detalle en `docs/current-status.md`.
 - Considerar un **límite de gasto mensual** en la consola de Anthropic (la app es pública vía QR).
 - Generar el **QR** apuntando a la URL pública para el póster.
 

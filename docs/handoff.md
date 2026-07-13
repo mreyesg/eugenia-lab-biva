@@ -27,7 +27,8 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 
 ### Próximo paso recomendado (el primero que debería hacer la siguiente sesión)
 
-1. **Revocar la clave vieja de Anthropic en console.anthropic.com.** Es el único paso de la rotación que no se pudo automatizar (Vercel no puede invalidar claves de Anthropic). Confirmar con Manuel que ya la revocó antes de considerar el pendiente cerrado del todo.
-2. Decidir cuál alias de Vercel es el oficial para el QR (ver `docs/current-status.md`) y, si aplica, fijarlo con `vercel alias set`.
-3. Definir límite de gasto mensual en la consola de Anthropic, y generar el QR final.
-4. Después de eso, seguir con la agenda de contenido en `lab/next_session.md` (fichas de lectura automáticas del paso 6, etc.), que es independiente de este arnés.
+La rotación de `ANTHROPIC_API_KEY` quedó cerrada del todo el 2026-07-12: Manuel confirmó que ya revocó la clave vieja en console.anthropic.com. No hace falta volver sobre esto.
+
+1. Decidir cuál alias de Vercel es el oficial para el QR (ver `docs/current-status.md`) y, si aplica, fijarlo con `vercel alias set`.
+2. Definir límite de gasto mensual en la consola de Anthropic, y generar el QR final.
+3. Después de eso, seguir con la agenda de contenido en `lab/next_session.md` (fichas de lectura automáticas del paso 6, etc.), que es independiente de este arnés.
