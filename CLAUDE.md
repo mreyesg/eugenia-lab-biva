@@ -132,6 +132,10 @@ eugenia_lab_biva/
 │   └── src/
 │       ├── build_poster.js            (script que genera el .pptx, editar y correr esto para cambios)
 │       └── previous_versions/         (4 iteraciones anteriores, ver CLAUDE.md arriba)
+├── presentation/                      (ponencia sobre el desarrollo de la app; documento vivo, ver presentation/README.md)
+│   ├── Presentacion_Biblioteca_Viva.pptx  (salida generada, 24 slides 16:9)
+│   └── src/
+│       └── build_presentation.js      (script pptxgenjs que genera el .pptx; la presentación es código, igual que el póster)
 ├── reference/
 │   ├── AI_Assisted_Literature_Analysis_PlectranthusJulio.pdf   (abstract ACS original)
 │   ├── Plectranthus_PhaseIII_PresentationJulio.pptx            (presentación Fase III)
