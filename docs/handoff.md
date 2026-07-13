@@ -12,23 +12,24 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 
 ## Última entrega
 
-**Fecha:** 2026-07-12
-**Quién:** sesión de Claude Code (continuación de la que instaló el arnés el 2026-07-09).
+**Fecha:** 2026-07-12 (segunda ronda del mismo día)
+**Quién:** sesión de Claude Code (continuación de la que instaló el arnés el 2026-07-09 y roto la API key más temprano hoy).
 
 ### Qué se hizo
 
-- Se inicializó git en la raíz del repo y se publicó en GitHub como `mreyesg/eugenia-lab-biva` (privado). Ver `docs/decisions.md` para el detalle de cómo se verificó que no se filtró ningún secreto antes del primer commit.
-- Se rotó `ANTHROPIC_API_KEY` completa: clave nueva generada por Manuel directamente en console.anthropic.com (nunca pasó por el chat/contexto del agente), reemplazada en `web/.env.local`, resubida a los 3 entornos de Vercel por separado, producción redesplegada (`vercel --prod`). Confirmado con `POST /api/generate` local (HTTP 200) y `scripts/verify.sh --network` contra producción (0 fallos, 0 advertencias).
-- Se actualizaron `AGENTS.md`, `docs/current-status.md`, `docs/decisions.md` y `lab/next_session.md` para reflejar ambos cambios (ya no dicen "no hay git" ni "falta rotar la clave").
+- Se probó el arnés en vivo, a propósito: se intentó invocar los subagentes `explorador`/`implementador`/`verificador` por nombre y **fallaron** ("Agent type not found"). Causa confirmada (no adivinada): `.claude/agents/` se creó durante una sesión anterior a la actual, y el watcher de subagentes solo escanea directorios que ya existían al arrancar la sesión. Documentado como gotcha en `AGENTS.md`. **Pendiente de confirmar la próxima sesión:** reiniciar Claude Code y verificar que `explorador`/`implementador`/`verificador` ya aparecen en la lista de agentes disponibles.
+- Como workaround, se usó el agente `general-purpose` pasándole el contenido íntegro del rol `explorador.md` como instrucciones. Funcionó: mapeó la tarea "Paso 6, fichas de lectura automáticas" (primer ítem de `lab/next_session.md`) y **encontró una contradicción real** entre esa agenda y el principio de `CLAUDE.md` de que ese paso debe ser manual, sin IA, sin que nadie se lo señalara primero.
+- Se llevó la contradicción a Manuel, que eligió un punto medio: sugerencia de IA opcional y editable, no automatización completa. Se implementó: `web/api/generate.js` ganó una quinta tarea (`notas`, con su `SCHEMAS.notas` y `buildNotas`), y `web/index.html` (paso 6) ganó un botón "Sugerir con IA" que rellena un borrador editable, deshabilitado cuando la referencia no tiene `resumen` real (agregada a mano). Nada se guarda sin pasar por "Guardar ficha" explícito del estudiante.
+- Verificado con `node --check` y con `curl` real contra `vercel dev`, en ambos escenarios: con resumen (devuelve una ficha de calidad, incluso señaló una tensión real entre un método de extracción y la restricción de "viabilidad de laboratorio docente" del proyecto) y sin resumen (se degrada con gracia, no inventa datos).
+- Se actualizaron `CLAUDE.md` (nota aclarando que la sección vieja de "notas de lectura sin IA" describe el artefacto legado `app/`, no `web/`), `lab/decision_log.md` (nueva entrada de decisión de producto), `lab/next_session.md` (ítem 1 de la agenda marcado como hecho), `docs/current-status.md` y `docs/module-map.md` (5 tareas en vez de 4), y `web/README.md`.
 
 ### Qué quedó roto o a medias
 
-- Nada roto conocido al momento de cerrar. `bash scripts/verify.sh --network` corrió limpio como última acción de la sesión.
+- Los subagentes de rol siguen sin poder invocarse por nombre en esta sesión (ver arriba). No es un bug del contenido de los roles, es un tema de cuándo se creó la carpeta respecto al arranque de la sesión.
 
 ### Próximo paso recomendado (el primero que debería hacer la siguiente sesión)
 
-La rotación de `ANTHROPIC_API_KEY` quedó cerrada del todo el 2026-07-12: Manuel confirmó que ya revocó la clave vieja en console.anthropic.com. No hace falta volver sobre esto.
-
-1. Decidir cuál alias de Vercel es el oficial para el QR (ver `docs/current-status.md`) y, si aplica, fijarlo con `vercel alias set`.
-2. Definir límite de gasto mensual en la consola de Anthropic, y generar el QR final.
-3. Después de eso, seguir con la agenda de contenido en `lab/next_session.md` (fichas de lectura automáticas del paso 6, etc.), que es independiente de este arnés.
+1. Reiniciar Claude Code y confirmar que `explorador`/`implementador`/`verificador` ya aparecen como `subagent_type` válidos. Si siguen sin aparecer, ahí sí es un problema real a investigar, no repitas el diagnóstico de memoria.
+2. Seguir con la agenda de `lab/next_session.md`: ítem 2 (reformular pregunta/objetivos a la luz de la literatura) e ítem 3 (regenerar perspectivas del mapa por separado).
+3. Antes de esos, si aplica: desplegar a producción (`vercel --prod` desde `web/`) el cambio del paso 6, que por ahora solo se probó en local. Ver si Manuel quiere revisar la funcionalidad en producción antes.
+4. Pendientes de siempre, sin cambios: decidir el alias oficial de Vercel para el QR, límite de gasto mensual en Anthropic, generar el QR.

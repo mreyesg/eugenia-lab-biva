@@ -94,6 +94,16 @@ const SCHEMAS = {
         }
       }
     }
+  },
+  notas: {
+    type: "object",
+    additionalProperties: false,
+    required: ["idea_principal", "conceptos_clave", "relacion_investigacion"],
+    properties: {
+      idea_principal: { type: "string" },
+      conceptos_clave: { type: "array", items: { type: "string" } },
+      relacion_investigacion: { type: "string" }
+    }
   }
 };
 
@@ -153,11 +163,28 @@ function buildDivulgacion(p) {
   return { system, user, schemaKey: "divulgacion", unwrap: (r) => r };
 }
 
+function buildNotas(p) {
+  const ref = p.referencia || {};
+  const idea = p.idea || {};
+  const preg = p.pregunta || {};
+  const system =
+    "Eres un asistente de investigacion que ayuda a estudiantes a redactar un borrador de ficha de lectura a partir de una referencia real. Tu resultado es un punto de partida que el estudiante debe revisar y editar con criterio propio, no una conclusion final. Respondes unicamente con datos estructurados.";
+  const user =
+    `Tema del proyecto: ${s(idea.tema)}\n` +
+    `Pregunta principal del proyecto: ${s(preg.pregunta_principal)}\n\n` +
+    `Referencia: ${s(ref.titulo)} (${s(ref.autores)}, ${s(ref.anio)})\n` +
+    `Resumen/abstract real de la referencia: ${s(ref.resumen)}\n` +
+    `Aporte ya identificado en la busqueda: ${s(ref.justificacion)}\n\n` +
+    "A partir del resumen real (no inventes datos que no esten ahi), redacta: la idea principal del articulo en 1 a 2 oraciones, entre 3 y 5 conceptos clave breves, y como se relaciona especificamente con el tema y la pregunta de este proyecto en 1 a 2 oraciones.";
+  return { system, user, schemaKey: "notas", unwrap: (r) => r };
+}
+
 const BUILDERS = {
   friccion: buildFriccion,
   pregunta: buildPregunta,
   mapa: buildMapa,
-  divulgacion: buildDivulgacion
+  divulgacion: buildDivulgacion,
+  notas: buildNotas
 };
 
 export default async function handler(req, res) {

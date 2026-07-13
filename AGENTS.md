@@ -68,6 +68,8 @@ Si tu herramienta soporta subagentes con definición en `.claude/agents/*.md`, e
 - **`implementador`**: hace el cambio mínimo pedido, respetando las convenciones de `CLAUDE.md` (sin guiones largos, sin over-engineering, sin build step en `web/`).
 - **`verificador`**: corre `scripts/verify.sh` y, si aplica, la verificación visual del póster o el smoke test de los endpoints. Nunca da por bueno un cambio solo porque el código "se ve bien".
 
+**Gotcha confirmado en 2026-07-12 (probando el arnés en vivo):** estos roles se detectan en caliente, pero solo si `.claude/agents/` ya existía cuando arrancó la sesión de Claude Code. Como se crearon durante una sesión anterior, la sesión donde se intentaron usar por primera vez no los reconoció (`subagent_type: "explorador"` daba "Agent type not found"). **Hace falta reiniciar Claude Code una vez** después de crear o agregar archivos a `.claude/agents/` para que el `Agent` tool los liste. Si en una sesión nueva siguen sin aparecer, ese es un problema real a investigar, no repitas este diagnóstico de memoria.
+
 ## Protocolo de cierre de sesión
 
 Antes de terminar cualquier sesión de trabajo en este repo:

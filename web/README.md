@@ -51,7 +51,7 @@ Por defecto se usa `claude-sonnet-5` (buen balance de calidad, costo y latencia 
 
 ## Seguridad del costo
 
-El backend solo acepta 4 tareas concretas (fricción, pregunta, mapa, divulgación) con datos estructurados; no es un "Claude gratis" abierto. Aun así, como el QR es público, conviene:
+El backend solo acepta 5 tareas concretas (fricción, pregunta, mapa, divulgación, notas) con datos estructurados; no es un "Claude gratis" abierto. Aun así, como el QR es público, conviene:
 
 - Vigilar el uso en el panel de https://console.anthropic.com.
 - Considerar un límite de gasto mensual en la consola de Anthropic.

@@ -324,6 +324,8 @@ let state = null;
 let loading = false;
 // Resultados de busqueda de articulos (transitorios, no se guardan en localStorage).
 let searchState = { activo: null, resultados: {}, error: {} };
+// Borrador de la ficha de lectura en construcción (transitorio, no se guarda en localStorage).
+let notaDraft = { refIdx: 0, idea: "", conceptos: "", relacion: "" };
 
 function truncar(str, n){
   str = (str == null) ? "" : String(str);
@@ -924,22 +926,31 @@ function attachBibliografiaHandlers(){
 }
 
 /* ============ STEP 6: NOTAS DE LECTURA ============ */
+// Nota de diseño (ver CLAUDE.md y docs/decisions.md 2026-07-12): este paso sigue
+// siendo manual por principio (la curación crítica no se delega a un atajo
+// automático). La IA aquí es una SUGERENCIA opcional que el estudiante debe
+// revisar y editar, nunca un resultado final que se guarda sin pasar por sus manos.
 function renderNotas(){
   const aceptadas = state.bibliografia.filter(r=>r.estado==="aceptada");
   const notas = state.notas;
+  if(notaDraft.refIdx >= aceptadas.length) notaDraft.refIdx = 0;
+  const refSeleccionada = aceptadas[notaDraft.refIdx];
+  const tieneResumen = !!(refSeleccionada && refSeleccionada.resumen && refSeleccionada.resumen.trim());
   return `
   ${aceptadas.length === 0 ? `<div class="card tint"><p style="margin:0;">Aún no tienes referencias aceptadas. Vuelve al paso anterior y acepta al menos una para crear una ficha de lectura.</p></div>` : `
     <div class="card">
       <label>Referencia</label>
       <select id="nota_ref">
-        ${aceptadas.map((r,i)=>`<option value="${i}">${escapeHtml(r.titulo)}</option>`).join("")}
+        ${aceptadas.map((r,i)=>`<option value="${i}" ${i===notaDraft.refIdx?'selected':''}>${escapeHtml(r.titulo)}</option>`).join("")}
       </select>
+      <button class="btn btn-ghost" id="btnSugerirNota" type="button" style="width:100%;margin:8px 0;" ${!tieneResumen?'disabled':''}>${AI_ICON} Sugerir con IA</button>
+      ${!tieneResumen ? `<p class="hint">Esta referencia se añadió a mano y no tiene un resumen real, así que EugenIA no puede sugerir una ficha. Complétala tú directamente.</p>` : `<p class="hint">EugenIA propone un borrador a partir del resumen real del artículo. Revísalo y ajústalo con tu propio criterio antes de guardar.</p>`}
       <label>Idea principal</label>
-      <textarea id="nota_idea"></textarea>
+      <textarea id="nota_idea">${escapeHtml(notaDraft.idea)}</textarea>
       <label>Conceptos clave</label>
-      <textarea id="nota_conceptos"></textarea>
+      <textarea id="nota_conceptos">${escapeHtml(notaDraft.conceptos)}</textarea>
       <label>Relación con mi investigación</label>
-      <textarea id="nota_relacion"></textarea>
+      <textarea id="nota_relacion">${escapeHtml(notaDraft.relacion)}</textarea>
       <button class="btn btn-primary" id="btnAddNota" style="width:100%;margin-top:12px;">Guardar ficha</button>
     </div>
   `}
@@ -954,19 +965,50 @@ function renderNotas(){
 }
 
 function attachNotasHandlers(){
+  const sel = document.getElementById("nota_ref");
+  if(sel) sel.onchange = () => {
+    notaDraft.refIdx = parseInt(sel.value);
+    notaDraft.idea = ""; notaDraft.conceptos = ""; notaDraft.relacion = "";
+    render();
+  };
+  ["nota_idea","nota_conceptos","nota_relacion"].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const draftKey = id.replace("nota_","");
+    el.oninput = () => { notaDraft[draftKey] = el.value; };
+  });
+  const btnSugerir = document.getElementById("btnSugerirNota");
+  if(btnSugerir) btnSugerir.onclick = generarNota;
   const btn = document.getElementById("btnAddNota");
   if(btn) btn.onclick = () => {
     const aceptadas = state.bibliografia.filter(r=>r.estado==="aceptada");
-    const idx = parseInt(document.getElementById("nota_ref").value);
-    const ref = aceptadas[idx];
+    const ref = aceptadas[notaDraft.refIdx];
     state.notas.push({
       titulo: ref.titulo,
       idea: document.getElementById("nota_idea").value,
       conceptos: document.getElementById("nota_conceptos").value,
       relacion: document.getElementById("nota_relacion").value
     });
+    notaDraft = { refIdx: 0, idea: "", conceptos: "", relacion: "" };
     saveState(); render();
   };
+}
+
+async function generarNota(){
+  const aceptadas = state.bibliografia.filter(r=>r.estado==="aceptada");
+  const ref = aceptadas[notaDraft.refIdx];
+  if(!ref || !ref.resumen) return;
+  const result = await callAgent("notas", {
+    referencia: ref,
+    idea: state.idea,
+    pregunta: state.pregunta
+  });
+  if(result){
+    notaDraft.idea = result.idea_principal || "";
+    notaDraft.conceptos = Array.isArray(result.conceptos_clave) ? result.conceptos_clave.join(", ") : "";
+    notaDraft.relacion = result.relacion_investigacion || "";
+    render();
+  }
 }
 
 /* ============ STEP 7: DIVULGACIÓN ============ */

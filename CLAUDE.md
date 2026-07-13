@@ -101,6 +101,8 @@ Decisiones de producto ya tomadas:
 - Identidad visual: paleta verde bosque (`#1F4620`), musgo (`#5B8C3E`), crema (`#FBFAF6`), acento tierra (`#8A5A2B`). Tipografía Fraunces (display) + Inter (cuerpo), vía Google Fonts. Motivo de "hojas" en el indicador de progreso, conectando con el concepto de "biblioteca viva".
 - Se probó la navegación completa de las 8 etapas y la pantalla de resumen en un navegador headless (Playwright) sin errores de JavaScript. Las llamadas reales a la API de Claude solo funcionan dentro del entorno de artefactos de Claude.ai (no al abrir el HTML suelto en un navegador cualquiera), porque ahí es donde se inyecta la autenticación.
 
+**Nota (2026-07-12):** todo lo de arriba en esta sección describe `app/biblioteca_viva_app.html`, el artefacto legado (sigue siendo así ahí, sin cambios). La app en producción real es `web/` (ver `docs/module-map.md` y `docs/current-status.md` para el estado vigente), que ya se desvió de esta descripción: usa `localStorage` en vez de `window.storage`, llama a un backend propio (`/api/generate`, `/api/search`) en vez de la API de Claude directo, el paso 5 (bibliografía viva) ya tiene búsqueda asistida por IA vía OpenAlex, y el paso 6 (notas de lectura) desde hoy ofrece una sugerencia de IA opcional (ver `lab/decision_log.md`, entrada 2026-07-12). El principio de que "la curaduría crítica no se delega a un atajo automático" se mantiene, pero en `web/` se implementa dejando la sugerencia de IA como borrador editable que el estudiante debe revisar, no como automatización silenciosa.
+
 ## Limitación importante a tener presente
 
 **Este HTML no se puede simplemente "correr" como una app de producción fuera de Claude.ai.** Para que el QR funcione en la presentación del póster, hay que:

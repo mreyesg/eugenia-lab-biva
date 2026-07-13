@@ -27,7 +27,8 @@ Este archivo es el snapshot *técnico/operativo* para que un agente nuevo sepa e
 Confirmado por inspección de código, no solo por lo que dice `lab/project_state.md` (aunque coincide):
 
 - Navegación de 8 etapas, persistencia en `localStorage`.
-- `POST /api/generate` acepta 4 tareas: `friccion`, `pregunta`, `mapa`, `divulgacion`. Devuelve 500 con `{"error":"El servidor no tiene configurada la clave de la API."}` si `ANTHROPIC_API_KEY` no está en el entorno donde corre.
+- `POST /api/generate` acepta 5 tareas: `friccion`, `pregunta`, `mapa`, `divulgacion`, `notas` (agregada 2026-07-12, ver más abajo). Devuelve 500 con `{"error":"El servidor no tiene configurada la clave de la API."}` si `ANTHROPIC_API_KEY` no está en el entorno donde corre.
+- **2026-07-12: Paso 6 (notas de lectura) ganó una sugerencia de IA opcional.** `CLAUDE.md` documentaba que ese paso debía ser deliberadamente manual; la agenda vieja en `lab/next_session.md` pedía automatizarlo por completo. Se resolvió el conflicto con un punto medio confirmado por Manuel: un botón "Sugerir con IA" (deshabilitado si la referencia no tiene `resumen` real, es decir, si se agregó a mano) rellena un borrador editable en las 3 cajas de texto; nada se guarda sin que el estudiante pase por "Guardar ficha" explícitamente. Ver `lab/decision_log.md` para el detalle de la decisión de producto y `docs/module-map.md` para las líneas exactas tocadas.
 - `POST /api/search` motor bibliométrico vía OpenAlex + Claude, sin inventar citas.
 - Probado con `curl` directo contra `vercel dev` local, ambos escenarios: el endpoint devuelve el error esperado cuando la clave falta, y devuelve HTTP 200 con contenido real una vez la clave está disponible (confirmado de nuevo tras la rotación del 2026-07-12).
 

@@ -25,7 +25,7 @@ Código en la carpeta `web/`. El artefacto viejo de Claude.ai (`app/biblioteca_v
 
 ## Agenda (próxima ronda, en orden)
 
-1. **Paso 6, fichas de lectura automáticas:** para cada referencia aceptada, generar idea principal, conceptos clave y relación con la investigación, a partir del resumen real que ya trae la búsqueda.
+1. ~~**Paso 6, fichas de lectura automáticas:** para cada referencia aceptada, generar idea principal, conceptos clave y relación con la investigación, a partir del resumen real que ya trae la búsqueda.~~ **Hecho 2026-07-12, con un ajuste:** no se automatizó por completo (chocaba con el principio de `CLAUDE.md` de que ese paso debe ser manual). Se implementó como sugerencia de IA opcional y editable, confirmado con Manuel. Detalle en `lab/decision_log.md` (2026-07-12) y `docs/current-status.md`.
 2. **Reformular la pregunta/objetivos** a la luz de la literatura seleccionada.
 3. **Regenerar perspectivas del mapa por separado** (conservar unas, rehacer otras).
 
