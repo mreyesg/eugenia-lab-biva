@@ -1,0 +1,16 @@
+# Secretos y config local (nunca subir)
+.env
+.env.*
+!.env.example
+web/.env.local
+web/.vercel/
+
+# Dependencias (se reinstalan con npm install)
+node_modules/
+web/node_modules/
+poster/src/node_modules/
+
+# Sistema operativo / editor
+.DS_Store
+Thumbs.db
+*.log
