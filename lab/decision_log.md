@@ -74,3 +74,13 @@ Registro de decisiones que afectan la dirección, estructura o metodología del 
 **Razón:** Documentar mientras ocurre es más fiel que reconstruir al cierre, y el registro del proceso iterativo es en sí mismo material publicable. Mantenerla como código (y no como un `.pptx` editado a mano) la hace versionable y reproducible, coherente con cómo ya se maneja el póster.
 
 **Impacto:** Nuevo artefacto en el repo, a mantener a lo largo del desarrollo revisando los marcadores PENDIENTE en cada hito. Verificación visual hecha exportando las slides a PNG con automatización COM de PowerPoint (en esta máquina no hay LibreOffice); repetir esa revisión al editar el script. Regla de estilo del proyecto (sin guiones largos) y reglas de pptx aplicadas.
+
+## [2026-07-13] — Confirmar la taxonomía de componentes y la generación por IA de las dimensiones de la MDE
+
+**Contexto:** Eran las dos preguntas abiertas que la Fase A había dejado registradas en `docs/vision-app.md`. La implementación ya había asumido una respuesta provisional; faltaba que Manuel la confirmara para cerrarlas.
+
+**Decisión:** (1) Mantener la taxonomía actual de 4 componentes del trabajo (Justificación y brecha, Métodos, Comparación de resultados, Discusión y contraste), y solo ajustarla si en el uso muestra ser insuficiente. (2) Las dimensiones de la Matriz de Decisión se generan siempre por IA según el campo del trabajo, no con un conjunto fijo pensado para química.
+
+**Razón:** La taxonomía actual ya funcionó bien en las pruebas y no hay evidencia de que falte algo; cambiarla sin necesidad solo agregaría complejidad. Generar las dimensiones de la MDE por IA según el campo es justamente lo que hace a la herramienta útil más allá de la química: un conjunto fijo la ataría a una sola disciplina y contradiría la meta de que sirva a cualquier investigación.
+
+**Impacto:** Cierra las dos preguntas abiertas de Fase A (ver `docs/vision-app.md`, sección marcada ahora como resuelta). No implica cambio de código: confirma lo ya implementado y evita que una sesión futura reabra la discusión.

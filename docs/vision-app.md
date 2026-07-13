@@ -66,10 +66,12 @@ Orden pensado para que, si el tiempo aprieta antes del congreso, lo que sí est�
 - La curaduría crítica y la decisión final son del investigador. La IA propone y evalúa; el humano acepta, edita y decide. Mismo principio que ya rige el paso 6.
 - Sin guiones largos en ningún texto (preferencia de estilo del proyecto).
 
-## Preguntas abiertas antes de codificar Fase A
+## Preguntas abiertas antes de codificar Fase A (resueltas, 2026-07-13)
 
-1. ¿La taxonomía de componentes de arriba es la correcta para tu audiencia, o la ajustamos? (por ejemplo, si quieres separar Marco conceptual, o fundir Comparación con Discusión).
-2. ¿Las dimensiones de la MDE deben ser siempre generadas por IA según el campo, o quieres un conjunto fijo pensado para química como opción por defecto?
+Ambas quedaron confirmadas por Manuel el 2026-07-13, consistentes con lo que ya se había implementado en Fase A. Se dejan aquí como decisiones cerradas para que una sesión futura no las reabra.
+
+1. **Taxonomía de componentes:** se mantiene la actual (Justificación y brecha, Métodos, Comparación de resultados, Discusión y contraste). Solo se ajustaría si en el uso muestra ser insuficiente.
+2. **Dimensiones de la MDE:** se generan siempre por IA según el campo del trabajo, no un conjunto fijo pensado para química, para no limitar la herramienta a esa disciplina.
 
 ## Extensión estratégica: de herramienta de evidencia a compañero de defendibilidad (dirección aprobada por Manuel, 2026-07-13)
 
