@@ -30,10 +30,17 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 - Nada roto. La Fase A está completa. Lo siguiente es la Fase B (síntesis de evidencia: consenso, contradicción, brecha), luego C (salidas de publicación) y D (modo investigador + pulido de lenguaje). Ver `docs/vision-app.md`.
 - Verificación visual: Manuel recorrió la etapa MDE en navegador y la aprobó. No se hizo un recorrido visual explícito de los chips de señales nuevos en el paso de bibliografía; se probaron los endpoints con `curl`. Vale la pena una mirada rápida en el teléfono.
 
+### Novedades 2026-07-12 (tercera ronda, esta sesión)
+
+- **Reenfoque** desde los artículos aceptados: tarea `reenfoque` en `generate.js` + sección en el paso de Bibliografía. Desplegado y probado (propone un giro coherente cuando los artículos aceptados son tangenciales al foco original).
+- **Recall mejorado** en `search.js`: se añadió Europe PMC como segunda fuente gratuita, con intercalado de fuentes (no ordenar por citas, sesgaba a OpenAlex), deduplicación por DOI/título y reintento con consulta amplia. Desplegado; en producción da mezcla 4/4 de ambas fuentes.
+- Registrada la meta de **colaboración con el Sistema de Bibliotecas de la UPR** para acceso institucional a bases pagadas (Scopus, WoS). Es gestión, no código; ver `lab/decision_log.md` y `docs/vision-app.md`.
+
 ### Próximo paso recomendado
 
 1. Empezar la **Fase B**: síntesis de evidencia. Una tarea nueva en `generate.js` (por ejemplo `sintesis`) que tome las referencias aceptadas y devuelva consenso, contradicción y brecha; una etapa o sección nueva que lo muestre. Alimenta justificación y discusión.
 2. Considerar pasar `fuerza` de cada referencia al generador de la MDE, para que pondere mejor las fuentes fuertes (hoy la MDE no la usa).
+3. Cuando avance la gestión con Bibliotecas UPR, diseñar el acceso institucional (proxy o llaves provistas por la biblioteca).
 
 ### Contexto de sesiones previas del mismo día (para no repetir trabajo)
 

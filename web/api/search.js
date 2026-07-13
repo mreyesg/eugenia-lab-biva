@@ -1,8 +1,9 @@
 // Función serverless: motor de búsqueda bibliométrica real.
 // 1) Claude convierte el contexto + una perspectiva del mapa en una consulta académica (en inglés).
-// 2) Se busca en OpenAlex (gratis, sin llave; agrega Crossref, PubMed, MAG y más). Artículos REALES, con DOI.
-// 3) Claude anota cada artículo con su aporte específico a la investigación en curso.
-// Nunca se inventan citas: los artículos vienen siempre de OpenAlex.
+// 2) Se busca en OpenAlex y Europe PMC (ambas gratis, sin llave). Se combinan y deduplican.
+//    Si sale poco o nada, se reintenta con una consulta más amplia. Artículos REALES, con DOI.
+// 3) Claude anota cada artículo con su aporte y la fuerza con que sostiene el componente.
+// Nunca se inventan citas: los artículos vienen siempre de las bases, nunca del modelo.
 
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 const MAILTO = process.env.OPENALEX_MAILTO || "eugenia.lab@upr.edu";
@@ -51,6 +52,39 @@ async function callClaude(system, user, schema) {
     const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
     return JSON.parse(cleaned);
   }
+}
+
+// Normaliza un DOI a su forma desnuda en minúsculas, para comparar entre fuentes.
+function normDoi(d) {
+  return s(d).toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, "").trim();
+}
+
+// Intercala dos listas (round-robin) conservando el orden de relevancia de cada
+// fuente. Así ambas quedan representadas al recortar, en vez de que una domine.
+function interleave(a, b) {
+  const out = [];
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    if (i < a.length) out.push(a[i]);
+    if (i < b.length) out.push(b[i]);
+  }
+  return out;
+}
+
+// Combina resultados de varias fuentes y elimina duplicados por DOI o, si no hay
+// DOI, por título normalizado.
+function dedup(items) {
+  const seen = new Set();
+  const out = [];
+  for (const it of items) {
+    const key =
+      normDoi(it.doi) ||
+      s(it.titulo).toLowerCase().replace(/\s+/g, " ").trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(it);
+  }
+  return out;
 }
 
 // ---- OpenAlex ----
@@ -134,6 +168,59 @@ async function searchOpenAlex(query) {
     });
 }
 
+// ---- Europe PMC (gratis, sin llave; fuerte en química y biomedicina) ----
+async function searchEuropePMC(query) {
+  const url =
+    "https://www.ebi.ac.uk/europepmc/webservices/rest/search" +
+    "?query=" + encodeURIComponent(query + " AND HAS_ABSTRACT:Y") +
+    "&format=json&resultType=core&pageSize=" + MAX_RESULTS;
+
+  const res = await fetch(url, { headers: { "User-Agent": "BibliotecaViva/1.0 (mailto:" + MAILTO + ")" } });
+  if (!res.ok) throw new Error("epmc_error");
+  const data = await res.json();
+  const works =
+    data && data.resultList && Array.isArray(data.resultList.result)
+      ? data.resultList.result
+      : [];
+
+  return works
+    .filter((w) => w && w.title)
+    .map((w) => {
+      const doiBare = s(w.doi);
+      const doiUrl = doiBare ? "https://doi.org/" + doiBare : "";
+      const link =
+        doiUrl ||
+        (w.id && w.source ? "https://europepmc.org/article/" + w.source + "/" + w.id : "");
+      const pts =
+        w.pubTypeList && Array.isArray(w.pubTypeList.pubType) ? w.pubTypeList.pubType : [];
+      const tipo = pts.some((t) => /review/i.test(s(t))) ? "Revisión" : "Artículo";
+      return {
+        titulo: s(w.title),
+        autores: truncar(s(w.authorString), 120),
+        anio: w.pubYear || "",
+        revista: s(w.journalTitle),
+        doi: doiUrl,
+        url: link,
+        oa: s(w.isOpenAccess) === "Y",
+        citas: typeof w.citedByCount === "number" ? w.citedByCount : null,
+        tipo_doc: tipo,
+        resumen: truncar(s(w.abstractText), 900),
+        fuente: "Europe PMC"
+      };
+    });
+}
+
+// Busca en ambas bases en paralelo y devuelve la union deduplicada. Solo falla
+// (para que el handler responda error) si ambas fuentes caen.
+async function buscarCombinado(query) {
+  const [oa, ep] = await Promise.all([
+    searchOpenAlex(query).catch(() => null),
+    searchEuropePMC(query).catch(() => null)
+  ]);
+  if (oa === null && ep === null) throw new Error("openalex_error");
+  return dedup(interleave(oa || [], ep || []));
+}
+
 // ---- Esquemas ----
 const QUERY_SCHEMA = {
   type: "object",
@@ -203,8 +290,24 @@ export default async function handler(req, res) {
     const q = await callClaude(querySystem, queryUser, QUERY_SCHEMA);
     const query = s(q && q.query) || s(ctx.tema);
 
-    // 2) Busqueda real en OpenAlex
-    let resultados = await searchOpenAlex(query);
+    // 2) Busqueda real en OpenAlex + Europe PMC (combinadas y deduplicadas).
+    let resultados = await buscarCombinado(query);
+
+    // Reintento con una consulta mas amplia si salio poco o nada.
+    if (resultados.length < 3) {
+      const amplia = query.split(/\s+/).slice(0, 3).join(" ");
+      if (amplia && amplia.toLowerCase() !== query.toLowerCase()) {
+        try {
+          const extra = await buscarCombinado(amplia);
+          resultados = dedup(resultados.concat(extra));
+        } catch {
+          // Si el reintento falla, conservamos lo que ya teniamos.
+        }
+      }
+    }
+
+    // Limitar al tope para la anotacion, conservando el intercalado por fuente.
+    resultados = resultados.slice(0, MAX_RESULTS);
 
     if (resultados.length === 0) {
       res.status(200).json({ resultados: [], query });
