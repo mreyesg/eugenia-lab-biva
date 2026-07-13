@@ -66,6 +66,21 @@ function reconstructAbstract(inv) {
   return positions.map((p) => p[1]).join(" ");
 }
 
+// Mapea el tipo de documento de OpenAlex a una etiqueta corta en espanol.
+function tipoDoc(t) {
+  const m = {
+    review: "Revisión",
+    article: "Artículo",
+    "book-chapter": "Capítulo",
+    book: "Libro",
+    preprint: "Preprint",
+    dataset: "Datos",
+    dissertation: "Tesis",
+    report: "Informe"
+  };
+  return m[s(t)] || "";
+}
+
 function formatAuthors(authorships) {
   if (!Array.isArray(authorships) || authorships.length === 0) return "";
   const names = authorships
@@ -82,7 +97,7 @@ async function searchOpenAlex(query) {
     "?search=" + encodeURIComponent(query) +
     "&filter=has_abstract:true" +
     "&per-page=" + MAX_RESULTS +
-    "&select=id,title,authorships,publication_year,doi,cited_by_count,abstract_inverted_index,open_access,primary_location" +
+    "&select=id,title,authorships,publication_year,doi,cited_by_count,abstract_inverted_index,open_access,primary_location,type" +
     "&mailto=" + encodeURIComponent(MAILTO);
 
   const res = await fetch(url, { headers: { "User-Agent": "BibliotecaViva/1.0 (mailto:" + MAILTO + ")" } });
@@ -112,6 +127,7 @@ async function searchOpenAlex(query) {
         url: url,
         oa: !!oa.is_oa,
         citas: typeof w.cited_by_count === "number" ? w.cited_by_count : null,
+        tipo_doc: tipoDoc(w.type),
         resumen: truncar(reconstructAbstract(w.abstract_inverted_index), 900),
         fuente: "OpenAlex"
       };
@@ -135,10 +151,12 @@ const APORTES_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["indice", "aporte"],
+        required: ["indice", "aporte", "fuerza"],
         properties: {
           indice: { type: "integer" },
-          aporte: { type: "string" }
+          aporte: { type: "string" },
+          // Que tan directamente el articulo sostiene el componente indicado.
+          fuerza: { type: "string", enum: ["alta", "media", "baja"] }
         }
       }
     }
@@ -195,7 +213,7 @@ export default async function handler(req, res) {
 
     // 3) Anotar cada articulo con su aporte a la investigacion
     const aporteSystem =
-      "Eres un asistente bibliometrico que ayuda a un estudiante a ver como cada articulo real apoya su investigacion. Para cada articulo, en 1 o 2 oraciones en espanol, explica su aporte concreto a la perspectiva indicada y a la pregunta de investigacion. Se especifico y honesto: si el articulo solo es tangencial, dilo. No inventes datos que no esten en el titulo o el resumen.";
+      "Eres un asistente bibliometrico que ayuda a un investigador a ver como cada articulo real apoya su trabajo. Para cada articulo devuelves dos cosas: 'aporte', en 1 o 2 oraciones en espanol, que explica su contribucion concreta al componente indicado y a la pregunta de investigacion; y 'fuerza', que clasifica que tan directamente lo sostiene, en uno de: 'alta' (evidencia directa y central para ese componente), 'media' (relevante pero parcial o indirecta), 'baja' (tangencial). Basate solo en el titulo y el resumen. Se honesto: si el articulo es tangencial, dilo y clasifica fuerza baja. No inventes datos que no esten en el titulo o el resumen.";
     const lista = resultados
       .map((r, idx) => `#${idx}\nTitulo: ${r.titulo}\nResumen: ${truncar(r.resumen, 500)}`)
       .join("\n\n");
@@ -209,13 +227,19 @@ export default async function handler(req, res) {
       const mapa = {};
       if (anot && Array.isArray(anot.aportes)) {
         for (const a of anot.aportes) {
-          if (a && Number.isInteger(a.indice)) mapa[a.indice] = s(a.aporte);
+          if (a && Number.isInteger(a.indice)) {
+            mapa[a.indice] = { aporte: s(a.aporte), fuerza: s(a.fuerza) };
+          }
         }
       }
-      resultados = resultados.map((r, idx) => ({ ...r, aporte: mapa[idx] || "" }));
+      resultados = resultados.map((r, idx) => ({
+        ...r,
+        aporte: (mapa[idx] && mapa[idx].aporte) || "",
+        fuerza: (mapa[idx] && mapa[idx].fuerza) || ""
+      }));
     } catch {
       // Si falla la anotacion, devolvemos igual los articulos reales sin aporte.
-      resultados = resultados.map((r) => ({ ...r, aporte: "" }));
+      resultados = resultados.map((r) => ({ ...r, aporte: "", fuerza: "" }));
     }
 
     res.status(200).json({ resultados, query });

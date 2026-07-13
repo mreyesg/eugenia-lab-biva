@@ -49,8 +49,8 @@ Orden pensado para que, si el tiempo aprieta antes del congreso, lo que sí est�
   - Generador de la MDE (tarea `mde` en `generate.js`, etapa nueva en `index.html`). Dimensiones adaptables a cualquier disciplina, celdas enlazadas a fuentes reales por DOI, sin inventar datos. Probado en local y en producción.
   - Reencuadre de componentes del manuscrito (tarea `mapa` da los 4 componentes confirmados).
   - Decidido con Manuel: taxonomía de 4 componentes tal cual, y dimensiones de la MDE siempre generadas por IA según el campo (genérico, no fijo para química).
-- **Fase A, lo que falta:** enriquecer el motor (`search.js`) con señales bibliométricas visibles (tipo de estudio, revista, y usar mejor citas/año/OA que ya vienen) y una evaluación de fuerza por componente. La búsqueda ya trae `citas`, `oa`, `anio`, `resumen`; falta exponerlos como señales de calidad en las tarjetas y sumar tipo de estudio y revista.
-- **Fases B, C, D:** pendientes.
+- **Fase A, segunda parte, HECHA y desplegada a producción (2026-07-12):** motor enriquecido. `search.js` ahora trae `tipo_doc` (tipo de documento desde OpenAlex: Revisión, Artículo, Capítulo, Preprint, etc.) y `fuerza` (alta / media / baja: qué tan directamente el artículo sostiene ESE componente, evaluado por Claude a partir de título y resumen). El frontend muestra estas señales como chips (`signalChips`) en las tarjetas de candidatos y en las referencias aceptadas, junto con revista, citas, año y acceso abierto. Probado en vivo: la evaluación de fuerza discrimina bien (una revisión botánica general salió "baja" para el componente de Métodos, artículos de extracción salieron alta/media). Con esto, **la Fase A está completa**.
+- **Fases B, C, D:** pendientes. B = síntesis de evidencia (consenso/contradicción/brecha). C = salidas para publicar por formato. D = modo de entrada investigador/guiado y pulido de lenguaje.
 
 ## Principios que no se negocian
 

@@ -18,16 +18,22 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 ### Qué se hizo
 
 - Se decidió con Manuel reposicionar la app de pedagógica a herramienta de investigador, reestructurando alrededor del motor bibliométrico, con la MDE como función estrella para el congreso del Colegio de Químicos (fin julio 2026). Plano en `docs/vision-app.md`, decisión en `lab/decision_log.md`.
-- **Fase A, primera parte, hecha y desplegada a producción:**
-  - Nueva etapa **Matriz de Decisión** (tarea `mde`): genera dimensiones de decisión adaptables a cualquier disciplina desde las referencias aceptadas, con celdas enlazadas a fuentes reales por DOI. Probada con `curl` en local (5 dimensiones bien fundamentadas para un caso de química) y en producción.
+- **Fase A COMPLETA, desplegada a producción:**
+  - Nueva etapa **Matriz de Decisión** (tarea `mde`): genera dimensiones de decisión adaptables a cualquier disciplina desde las referencias aceptadas, con celdas enlazadas a fuentes reales por DOI. Probada con `curl` en local (5 dimensiones bien fundamentadas para un caso de química) y en producción. Manuel la recorrió en navegador y la aprobó.
   - El paso "Mapa bibliográfico" se reencuadró a "Componentes del trabajo": la tarea `mapa` da los 4 componentes de manuscrito confirmados. Probado, devuelve los 4 exactos.
+  - **Motor enriquecido:** `search.js` devuelve `tipo_doc` y `fuerza` (alta/media/baja evaluada por Claude por componente); el frontend los muestra como chips (`signalChips`) con revista, citas, año y OA. Probado en vivo: la fuerza discrimina bien (revisión general → baja para Métodos; artículos de extracción → alta/media).
   - `migrateState()` protege el progreso guardado de usuarios previos al agregar la clave `mde`.
 - Verificado: `node --check` sobre `generate.js`, extracción y `node --check` del JS embebido de `index.html`, `scripts/verify.sh`, y `curl` real contra `vercel dev` y contra producción. Desplegado con `vercel --prod`.
 
 ### Qué quedó roto o a medias
 
-- Nada roto. La Fase A quedó a medias por diseño: falta enriquecer `search.js` con señales bibliométricas visibles (tipo de estudio, revista) y evaluación de fuerza por componente. Ver `docs/vision-app.md` sección Progreso.
-- No se hizo verificación visual en navegador de la nueva etapa MDE (solo se probaron los endpoints con `curl` y la sintaxis del JS). Vale la pena abrir la app en el teléfono o en un navegador y recorrer el flujo completo hasta la Matriz antes del congreso.
+- Nada roto. La Fase A está completa. Lo siguiente es la Fase B (síntesis de evidencia: consenso, contradicción, brecha), luego C (salidas de publicación) y D (modo investigador + pulido de lenguaje). Ver `docs/vision-app.md`.
+- Verificación visual: Manuel recorrió la etapa MDE en navegador y la aprobó. No se hizo un recorrido visual explícito de los chips de señales nuevos en el paso de bibliografía; se probaron los endpoints con `curl`. Vale la pena una mirada rápida en el teléfono.
+
+### Próximo paso recomendado
+
+1. Empezar la **Fase B**: síntesis de evidencia. Una tarea nueva en `generate.js` (por ejemplo `sintesis`) que tome las referencias aceptadas y devuelva consenso, contradicción y brecha; una etapa o sección nueva que lo muestre. Alimenta justificación y discusión.
+2. Considerar pasar `fuerza` de cada referencia al generador de la MDE, para que pondere mejor las fuentes fuertes (hoy la MDE no la usa).
 
 ### Contexto de sesiones previas del mismo día (para no repetir trabajo)
 

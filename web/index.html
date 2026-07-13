@@ -802,7 +802,8 @@ function renderBibliografia(){
           <div class="meta">${escapeHtml(r.autores||'')} ${r.anio?('· '+escapeHtml(r.anio)):''}${typeof r.citas==='number'?(' · '+r.citas+' citas'):''}</div>
         </div>
       </div>
-      ${(r.perspectiva||r.fuente) ? `<div style="margin-top:8px;">${r.perspectiva?`<span class="chip">${escapeHtml(r.perspectiva)}</span>`:''}${r.fuente?`<span class="chip pending">${escapeHtml(r.fuente)}</span>`:''}${r.oa?`<span class="chip">Acceso abierto</span>`:''}</div>` : ""}
+      ${r.perspectiva ? `<div style="margin-top:8px;"><span class="chip">${escapeHtml(r.perspectiva)}</span></div>` : ""}
+      ${signalChips(r)}
       ${r.justificacion ? `<p style="font-size:13.5px;margin:8px 0 0 0;">${escapeHtml(r.justificacion)}</p>` : ""}
       ${r.url ? `<a class="small-btn" href="${escapeAttr(r.url)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;">Ver fuente</a>` : ""}
       <div class="status-row">
@@ -812,6 +813,21 @@ function renderBibliografia(){
       </div>
     </div>
   `).join("")}`;
+}
+
+// Señales bibliométricas de una fuente, como chips: tipo de documento, fuerza de
+// la evidencia (evaluada por IA), revista y acceso abierto. Las citas y el año van
+// en la línea de meta, aparte.
+function signalChips(r){
+  const chips = [];
+  if(r.tipo_doc) chips.push(`<span class="chip" style="background:#ECEAE3;color:#5B5B50;">${escapeHtml(r.tipo_doc)}</span>`);
+  if(r.fuerza === "alta") chips.push(`<span class="chip">Evidencia fuerte</span>`);
+  else if(r.fuerza === "media") chips.push(`<span class="chip pending">Evidencia media</span>`);
+  else if(r.fuerza === "baja") chips.push(`<span class="chip" style="background:#ECEAE3;color:#6B6B60;">Tangencial</span>`);
+  if(r.revista) chips.push(`<span class="chip" style="background:#ECEAE3;color:#5B5B50;">${escapeHtml(truncar(r.revista,28))}</span>`);
+  if(r.oa) chips.push(`<span class="chip">Acceso abierto</span>`);
+  if(!chips.length) return "";
+  return `<div style="margin-top:8px;">${chips.join("")}</div>`;
 }
 
 function renderPerspectivaBusqueda(m, i){
@@ -837,7 +853,8 @@ function renderCandidato(key, c, j){
   return `
   <div class="ref-item" style="margin-top:10px;">
     <h3 style="font-size:14.5px;">${escapeHtml(c.titulo)}</h3>
-    <div class="meta">${escapeHtml(c.autores)}${c.anio?(' · '+escapeHtml(String(c.anio))):''}${typeof c.citas==='number'?(' · '+c.citas+' citas'):''}${c.oa?' · Acceso abierto':''}</div>
+    <div class="meta">${escapeHtml(c.autores)}${c.anio?(' · '+escapeHtml(String(c.anio))):''}${typeof c.citas==='number'?(' · '+c.citas+' citas'):''}</div>
+    ${signalChips(c)}
     ${c.aporte ? `<p style="font-size:13px;margin:8px 0 0 0;"><b>Aporte a tu investigación:</b> ${escapeHtml(c.aporte)}</p>` : ""}
     ${c.resumen ? `<p style="font-size:12.5px;color:var(--ink-soft);margin:6px 0 0 0;">${escapeHtml(truncar(c.resumen,240))}</p>` : ""}
     <div class="status-row">
@@ -897,6 +914,9 @@ function agregarReferencia(c, perspectiva){
     url: c.url || "",
     oa: !!c.oa,
     citas: (typeof c.citas === "number") ? c.citas : null,
+    revista: c.revista || "",
+    tipo_doc: c.tipo_doc || "",
+    fuerza: c.fuerza || "",
     resumen: c.resumen || "",
     fuente: c.fuente || "OpenAlex",
     perspectiva: perspectiva
