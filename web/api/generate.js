@@ -105,6 +105,29 @@ const SCHEMAS = {
       relacion_investigacion: { type: "string" }
     }
   },
+  reenfoque: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "tema",
+      "problema",
+      "pregunta_principal",
+      "objetivo_general",
+      "objetivos_especificos",
+      "justificacion_giro",
+      "fuentes"
+    ],
+    properties: {
+      tema: { type: "string" },
+      problema: { type: "string" },
+      pregunta_principal: { type: "string" },
+      objetivo_general: { type: "string" },
+      objetivos_especificos: { type: "array", items: { type: "string" } },
+      justificacion_giro: { type: "string" },
+      // Numeros (1-based) de las referencias aceptadas que sostienen el nuevo foco.
+      fuentes: { type: "array", items: { type: "integer" } }
+    }
+  },
   mde: {
     type: "object",
     additionalProperties: false,
@@ -228,13 +251,37 @@ function buildMde(p) {
   return { system, user, schemaKey: "mde", unwrap: (r) => r.dimensiones, maxTokens: 2400 };
 }
 
+function buildReenfoque(p) {
+  const idea = p.idea || {};
+  const preg = p.pregunta || {};
+  const refs = Array.isArray(p.referencias) ? p.referencias : [];
+  const lista = refs
+    .map((r, i) => {
+      const n = i + 1;
+      return (
+        `[${n}] ${s(r.titulo)} (${s(r.autores)}, ${s(r.anio)})\n` +
+        `    Resumen: ${s(r.resumen)}\n` +
+        `    Aporte: ${s(r.justificacion)}`
+      );
+    })
+    .join("\n");
+  const system =
+    "Eres un asistente de investigacion. Ayudas a un investigador a reconsiderar el foco de su trabajo a la luz de los articulos que realmente selecciono, no de los que penso al principio. Es legitimo que el foco se reoriente hacia los intereses que emergen de esa seleccion, aunque cambie respecto al foco original: a veces la verdadera pregunta se descubre leyendo. Basas la propuesta unicamente en los articulos provistos, nunca inventas datos ni citas. Respondes unicamente con datos estructurados.";
+  const user =
+    `Foco original. Tema: ${s(idea.tema)}. Pregunta principal: ${s(preg.pregunta_principal)}.\n\n` +
+    `Articulos que el investigador acepto (numerados):\n${lista}\n\n` +
+    "Propon un foco de investigacion reformulado que emerja genuinamente de estos articulos seleccionados, aunque implique un giro respecto al foco original. Devuelve: 'tema' (el nuevo angulo, breve), 'problema', 'pregunta_principal', 'objetivo_general', entre 2 y 3 'objetivos_especificos', 'justificacion_giro' (en 2 a 3 oraciones, como este nuevo foco surge de los articulos elegidos y en que se diferencia del foco original), y 'fuentes' (los numeros de los articulos que sostienen el nuevo foco). Todo en espanol, especifico y coherente con la evidencia seleccionada.";
+  return { system, user, schemaKey: "reenfoque", unwrap: (r) => r, maxTokens: 2000 };
+}
+
 const BUILDERS = {
   friccion: buildFriccion,
   pregunta: buildPregunta,
   mapa: buildMapa,
   divulgacion: buildDivulgacion,
   notas: buildNotas,
-  mde: buildMde
+  mde: buildMde,
+  reenfoque: buildReenfoque
 };
 
 export default async function handler(req, res) {

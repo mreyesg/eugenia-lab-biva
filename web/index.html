@@ -344,6 +344,7 @@ function defaultProject(){
     pregunta: {problema:"", pregunta_principal:"", preguntas_secundarias:["",""], objetivo_general:"", objetivos_especificos:["",""], delimitaciones:""},
     mapa: [],
     bibliografia: [],
+    reenfoque: null,
     mde: [],
     notas: [],
     divulgacion: {formato:"", outline:null},
@@ -812,7 +813,97 @@ function renderBibliografia(){
         <button class="status-btn ${r.estado==='rechazada'?'active-rejected':''}" data-i="${i}" data-estado="rechazada">Rechazar</button>
       </div>
     </div>
-  `).join("")}`;
+  `).join("")}
+  ${renderReenfoque()}`;
+}
+
+/* ============ REENFOQUE (dentro de Bibliografía) ============ */
+// Permite reformular el foco de la investigación a partir de los artículos que el
+// investigador realmente aceptó, aunque impliquen un giro respecto al foco original.
+// La IA propone; el investigador adopta o conserva el original (nunca sobreescribe solo).
+function renderReenfoque(){
+  const aceptadas = state.bibliografia.filter(r=>r.estado==="aceptada");
+  if(aceptadas.length < 2) return "";
+  const p = state.reenfoque;
+  const gen = `
+    <div class="card accent" style="margin-top:16px;">
+      <h3 style="font-size:15px;margin:0 0 6px 0;">¿Tu lectura cambió tu enfoque?</h3>
+      <p style="font-size:13.5px;color:var(--ink-soft);margin:0 0 12px 0;">A veces los artículos que más te interesan apuntan a una pregunta distinta de la que empezaste. EugenIA puede proponerte un enfoque reformulado a partir de las ${aceptadas.length} referencias que aceptaste. Tú decides si lo adoptas o conservas el original.</p>
+      <button class="btn btn-accent" id="btnReenfocar" style="width:100%;">${p?"Proponer otro enfoque":"Reenfocar desde mis artículos"}</button>
+    </div>`;
+  if(!p) return gen;
+  const chips = (Array.isArray(p.fuentes)?p.fuentes:[])
+    .map(n=>aceptadas[n-1]).filter(Boolean)
+    .map(r=>{
+      const u = refUrl(r); const et = escapeHtml(truncar(r.titulo,55));
+      return u
+        ? `<a href="${escapeAttr(u)}" target="_blank" rel="noopener" style="display:inline-block;font-size:12px;background:var(--moss-light);color:var(--forest);border-radius:10px;padding:3px 9px;margin:3px 4px 0 0;text-decoration:none;">${et}</a>`
+        : `<span style="display:inline-block;font-size:12px;background:var(--moss-light);color:var(--forest);border-radius:10px;padding:3px 9px;margin:3px 4px 0 0;">${et}</span>`;
+    }).join("");
+  const objs = (Array.isArray(p.objetivos_especificos)?p.objetivos_especificos:[])
+    .map(o=>`<li>${escapeHtml(o)}</li>`).join("");
+  return gen + `
+    <div class="ai-badge">${AI_ICON} Enfoque propuesto por EugenIA</div>
+    <div class="card tint">
+      <h3 style="font-size:15px;margin:0 0 8px 0;">${escapeHtml(p.tema)}</h3>
+      <p style="font-size:13.5px;margin:0 0 8px 0;"><b>Pregunta principal:</b> ${escapeHtml(p.pregunta_principal)}</p>
+      <p style="font-size:13.5px;margin:0 0 8px 0;"><b>Objetivo general:</b> ${escapeHtml(p.objetivo_general)}</p>
+      ${objs?`<div style="font-size:13.5px;margin:0 0 8px 0;"><b>Objetivos específicos:</b><ul class="plain" style="margin:4px 0 0 0;">${objs}</ul></div>`:""}
+      <p style="font-size:13.5px;margin:0 0 8px 0;"><b>Por qué este giro:</b> ${escapeHtml(p.justificacion_giro)}</p>
+      <div style="border-top:1px solid #E4DFCF;padding-top:8px;">
+        <span class="hint" style="display:block;margin-bottom:2px;">Sostenido por:</span>
+        ${chips||`<span class="hint">Sin fuentes específicas.</span>`}
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <button class="btn btn-ghost" id="btnDescartarReenfoque" style="flex:1;">Conservar el original</button>
+        <button class="btn btn-primary" id="btnAdoptarReenfoque" style="flex:1;">Adoptar este enfoque</button>
+      </div>
+    </div>`;
+}
+
+function attachReenfoqueHandlers(){
+  const b = document.getElementById("btnReenfocar");
+  if(b) b.onclick = generarReenfoque;
+  const a = document.getElementById("btnAdoptarReenfoque");
+  if(a) a.onclick = adoptarReenfoque;
+  const d = document.getElementById("btnDescartarReenfoque");
+  if(d) d.onclick = descartarReenfoque;
+}
+
+async function generarReenfoque(){
+  const aceptadas = state.bibliografia.filter(r=>r.estado==="aceptada");
+  if(aceptadas.length < 2) return;
+  const referencias = aceptadas.map(r=>({
+    titulo: r.titulo, autores: r.autores, anio: r.anio,
+    resumen: r.resumen || "", justificacion: r.justificacion || ""
+  }));
+  const result = await callAgent("reenfoque", {
+    idea: state.idea, pregunta: state.pregunta, referencias
+  });
+  if(result){ state.reenfoque = result; saveState(); }
+  render();
+}
+
+function adoptarReenfoque(){
+  const p = state.reenfoque;
+  if(!p) return;
+  if(!confirm("Esto actualizará tu tema, pregunta y objetivos con el enfoque propuesto. Podrás seguir editándolos a mano. ¿Adoptar?")) return;
+  if(p.tema) state.idea.tema = p.tema;
+  if(p.problema) state.pregunta.problema = p.problema;
+  if(p.pregunta_principal) state.pregunta.pregunta_principal = p.pregunta_principal;
+  if(p.objetivo_general) state.pregunta.objetivo_general = p.objetivo_general;
+  if(Array.isArray(p.objetivos_especificos) && p.objetivos_especificos.length){
+    state.pregunta.objetivos_especificos = p.objetivos_especificos.slice();
+  }
+  state.reenfoque = null;
+  saveState();
+  goToStep(STAGES.findIndex(s=>s.key==="pregunta"));
+}
+
+function descartarReenfoque(){
+  state.reenfoque = null;
+  saveState();
+  render();
 }
 
 // Señales bibliométricas de una fuente, como chips: tipo de documento, fuerza de
@@ -956,6 +1047,7 @@ function attachBibliografiaHandlers(){
       if(cand) agregarReferencia(cand, key);
     };
   });
+  attachReenfoqueHandlers();
 }
 
 /* ============ STEP 6: MATRIZ DE DECISIÓN ============ */
