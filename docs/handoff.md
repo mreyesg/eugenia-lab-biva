@@ -12,7 +12,40 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 
 ## Última entrega
 
-**Fecha:** 2026-07-13
+**Fecha:** 2026-07-13 (segunda ronda del mismo día)
+**Quién:** sesión de Claude Code.
+
+### Qué se hizo
+
+- Se validó el Preview B+ (`https://web-qkumuraw9-mreyesgs-projects.vercel.app`) de punta a punta con un navegador real (Playwright, emulación iPhone 13), no solo por inspección de código: portada, selección de Modo investigador, Componentes del trabajo, búsqueda real de artículos, aceptación de referencias, MDE, síntesis, resumen, informe de evidencia, descarga de texto e impresión/PDF. Como el Preview está protegido por el login de Vercel y `vercel dev` local no soporta POST en Windows, se habilitó temporalmente el "Protection Bypass for Automation" del proyecto para poder probarlo con un bot, y se desactivó al terminar (detalle y por qué en `docs/decisions.md`, entrada 2026-07-13).
+- Con el Preview validado, Manuel aprobó promover a producción. Se desplegó (`vercel --prod`, deployment `dpl_Exk9ie42BUk2Med7sXVh4eQSUsso`), y se repitió el mismo recorrido con Playwright directamente contra `https://web-beta-hazel-49.vercel.app` (esta vez sin bypass, porque producción no tiene el muro de login).
+- Esa segunda corrida contra producción encontró un bug real: el paso "Componentes del trabajo" devolvió 1 de 4 ítems esperados, con un fragmento de JSON sin cerrar filtrado como texto visible. Causa: la tarea `mapa` en `web/api/generate.js` no tenía `maxTokens` propio (usaba el default de 1600) y el handler no revisaba `stop_reason === "max_tokens"` antes de parsear. Confirmado no-determinístico (3/3 llamadas directas por `curl` salieron limpias), pero con riesgo real para una demo pública en vivo.
+- Se corrigió: `mapa` y `divulgacion` (la otra tarea con salida de varios ítems y sin `maxTokens` propio) ahora piden 2200 tokens, igual que `mde` y `sintesis` ya tenían. Se agregó un guard explícito en el handler: si la respuesta se trunca por `max_tokens`, responde un error limpio y reintentable en vez de dejar pasar JSON incompleto. Redesplegado a producción (`dpl_5bdyoCA9x3ioQxWgrBkqyT4ywuGQ`) y verificado con 4 llamadas directas más a la tarea `mapa`: 4/4 limpias.
+
+### Verificación
+
+- `bash scripts/verify.sh` (sin `--network`) corrido desde la raíz: 0 fallos, 0 advertencias.
+- `node --check web/api/generate.js` tras el fix: OK.
+- Recorrido completo en navegador real (no simulado) contra Preview y luego contra producción, ambos con 0 excepciones de JavaScript observadas por Playwright.
+- Smoke test de red contra producción: `GET /` → 200, `POST /api/search` sin body → 400, `GET /api/search` → 405 (comportamiento esperado).
+- El botón "Descargar texto" del informe disparó una descarga real (`informe-evidencia-biblioteca-viva.txt`); el botón "Imprimir/PDF" invocó `window.print()`.
+- El secreto de bypass de Vercel usado durante las pruebas se desactivó y se confirmó por `curl` que ya no funciona (no quedó ninguna puerta trasera abierta).
+
+### Qué quedó roto o a medias
+
+- El informe sigue siendo la primera salida de Fase C: no genera todavía estilos ACS/APA/Vancouver ni párrafos específicos para métodos y discusión (esto ya estaba documentado antes, no cambió en esta ronda).
+- No se re-auditaron `friccion`, `pregunta` ni `notas` (que se quedaron en el `maxTokens` default de 1600); no hay evidencia de que trunquen, pero tampoco se probaron a fondo esta ronda. Ver "Pendientes activos" en `docs/current-status.md`.
+- No se probó en un teléfono físico real (solo emulación de viewport móvil en Chromium headless). Sigue pendiente que Manuel lo recorra en su propio teléfono antes de imprimir el QR.
+
+### Próximo paso recomendado
+
+1. Manuel recorre producción en su teléfono físico (no solo emulación) para el visto bueno final antes de generar el QR.
+2. Continuar Fase C: tabla comparativa y borradores citados de justificación, métodos y discusión.
+3. Pendientes de siempre, sin cambios: límite de gasto mensual en Anthropic, fijar el alias oficial de Vercel para el QR, generar el QR, llenar `lab/roadmap.md`.
+
+---
+
+**Registro anterior: 2026-07-13 (primera ronda del mismo día)**
 **Quién:** sesión de Codex.
 
 ### Qué se hizo

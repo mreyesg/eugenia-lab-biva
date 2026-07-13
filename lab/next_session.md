@@ -4,10 +4,12 @@ Agenda y preparación para la próxima sesión de trabajo.
 
 ## Arranque recomendado para 2026-07-14
 
-1. Abrir el Preview B+ `https://web-qkumuraw9-mreyesgs-projects.vercel.app`.
-2. Recorrer en teléfono el Modo investigador completo: búsqueda, aceptación de fuentes, MDE, síntesis e informe.
-3. Verificar descarga de texto e impresión/guardado como PDF.
-4. Corregir detalles encontrados y, con aprobación de Manuel, promover a producción.
+**El plan que estaba aquí ya se hizo el 2026-07-13** (segunda ronda del mismo día): el recorrido completo del Modo investigador (búsqueda, MDE, síntesis, informe, descarga e impresión) se validó con un navegador real contra el Preview y luego contra producción, se encontró y corrigió un bug real de truncamiento en "Componentes del trabajo", y **B+ ya está en producción** (`https://web-beta-hazel-49.vercel.app`). Detalle completo en `docs/handoff.md` y `docs/current-status.md`.
+
+Lo único de ese plan que sigue pendiente, porque requiere a Manuel en persona:
+
+1. Recorrer producción en un **teléfono físico real** (lo hecho hasta ahora fue emulación de viewport móvil en Chromium headless, no un dispositivo real).
+2. Con ese visto bueno, generar el QR (ver "Pendientes de higiene" abajo).
 
 ---
 

@@ -1,6 +1,6 @@
 # Current status (snapshot técnico para agentes)
 
-**Última actualización:** 2026-07-13.
+**Última actualización:** 2026-07-13 (segunda ronda: validación B+ y promoción a producción).
 
 Este archivo es el snapshot *técnico/operativo* para que un agente nuevo sepa en qué estado está el código sin leer el chat. Para el snapshot *de investigación/estudiantes* (Kamila, fases del estudio de Plectranthus), ver `lab/project_state.md`, que se mantiene por separado y no se duplicó aquí.
 
@@ -9,7 +9,15 @@ Este archivo es el snapshot *técnico/operativo* para que un agente nuevo sepa e
 - **Runtime Node fijado en 22.x (2026-07-13):** `web/package.json`, `web/package-lock.json` y `web/.nvmrc` declaran Node 22. Como el equipo no tiene gestor de versiones y Chocolatey requiere privilegios administrativos, se instaló Node 22.23.0 portátil en `.tools/` (ignorado por Git). `scripts/vercel-dev-node22.ps1` inicia Vercel Dev en el puerto 3005 usando explícitamente ese runtime.
 - **Control de versiones:** existe desde 2026-07-12. Repo git inicializado en la raíz, primer commit hecho, y subido a GitHub como `mreyesg/eugenia-lab-biva` (privado). `.gitignore` (raíz y `web/.gitignore`) excluye `node_modules/`, `web/.env.local`, `web/.vercel/`; verificado con `git check-ignore` antes del primer commit que nada sensible quedó staged.
 - **Hosting:** Vercel, proyecto `web` (org `mreyesgs-projects`, `projectId: prj_NSR0I03nKcM0kyjKlg1bw4UBBM5P`).
-- **Preview B+ (2026-07-13):** `https://web-qkumuraw9-mreyesgs-projects.vercel.app`, deployment `dpl_8g6dn6eNYN6GRwLbke71rKekagRR`, construido con Node 22.23.0. Manuel abrió el Preview y confirmó que la diferencia entre Modo investigador y Modo guiado se entiende. No se promovió a producción.
+- **Preview B+ (2026-07-13):** `https://web-qkumuraw9-mreyesgs-projects.vercel.app`, deployment `dpl_8g6dn6eNYN6GRwLbke71rKekagRR`, construido con Node 22.23.0. Manuel abrió el Preview y confirmó que la diferencia entre Modo investigador y Modo guiado se entiende. **Ya promovido a producción, ver entrada siguiente.**
+- **2026-07-13 (segunda ronda): B+ promovido a producción, con un fix aplicado en el camino.** Se validó el Preview de punta a punta con Playwright (emulación móvil iPhone 13, con el bypass de automatización de Vercel activado solo durante la prueba, ver `docs/decisions.md`): portada, Modo investigador, Componentes del trabajo, búsqueda real, aceptación de referencias, MDE, síntesis, resumen, informe de evidencia, descarga de texto e impresión/PDF. Todo funcionó sin excepciones de JavaScript. Se desplegó a producción (`vercel --prod`, deployment `dpl_Exk9ie42BUk2Med7sXVh4eQSUsso`).
+
+  Al repetir la verificación **contra producción ya desplegada**, una corrida del paso "Componentes del trabajo" devolvió solo 1 de los 4 componentes esperados, con un fragmento de JSON sin cerrar filtrándose como texto visible al final de la descripción (síntoma de respuesta truncada por `max_tokens`, ver causa abajo). Repetido por `curl` directo, 3/3 intentos salieron limpios (4/4 componentes), así que es una falla de baja probabilidad, no determinística, pero con riesgo real en una demo pública en vivo.
+
+  **Causa:** en `web/api/generate.js`, la tarea `mapa` (y `divulgacion`) no tenían `maxTokens` propio y usaban el default de 1600, insuficiente cuando el modelo no respeta la instrucción de "1-2 oraciones" y genera descripciones más largas para los 4 (o 5-8, en divulgación) ítems. El handler tampoco revisaba `stop_reason === "max_tokens"` antes de intentar `JSON.parse`, así que una respuesta truncada podía colarse parcialmente a la pantalla del usuario en vez de fallar limpio.
+
+  **Fix aplicado y redesplegado (deployment `dpl_5bdyoCA9x3ioQxWgrBkqyT4ywuGQ`):** `mapa` y `divulgacion` ahora piden `maxTokens: 2200` (mismo orden de magnitud que `mde` y `sintesis`, que ya lo tenían). El handler agregó un guard explícito: si `stop_reason === "max_tokens"`, responde `502` con `{"error":"La respuesta del agente quedo incompleta. Intenta de nuevo."}` en vez de intentar parsear JSON truncado. Verificado con 4 llamadas directas más a `/api/generate` (tarea `mapa`) contra producción tras el fix: 4/4 limpias.
+
 - **URL de producción:** `https://web-beta-hazel-49.vercel.app`. Confirmado con `vercel alias ls` que hay 3 alias apuntando al mismo deployment actual (13h de antigüedad al momento de revisar):
   - `web-beta-hazel-49.vercel.app` (la que usan `lab/next_session.md` y el README)
   - `web-mreyesgs-projects.vercel.app`
@@ -30,7 +38,7 @@ Confirmado por inspección de código, no solo por lo que dice `lab/project_stat
 
 - Navegación adaptada por perfil, persistencia en `localStorage`. El modo investigador omite fricción, formulación guiada y reflexión; el modo guiado conserva el recorrido completo.
 - `POST /api/generate` acepta 8 tareas: `friccion`, `pregunta`, `mapa`, `divulgacion`, `notas`, `mde`, `sintesis`, `reenfoque`. Devuelve 500 con `{"error":"El servidor no tiene configurada la clave de la API."}` si `ANTHROPIC_API_KEY` no está en el entorno donde corre.
-- **2026-07-13: Fase B y primera entrega B+ desplegadas a Preview, no a producción.** La portada ofrece entrada rápida de investigador (tema, pregunta, abstract y objetivo) o recorrido guiado. La tarea `sintesis` compara las referencias aceptadas y devuelve consensos, contradicciones y brechas con implicación, confianza e índices de fuentes. El informe de evidencia reúne foco, síntesis, MDE y referencias; se imprime/guarda como PDF o descarga como texto. Los chips `fuerza` se renombraron a `Ajuste directo/parcial/tangencial`, porque miden pertinencia para el componente y no calidad metodológica.
+- **2026-07-13: Fase B y primera entrega B+, validadas y desplegadas a producción (ver detalle de infraestructura arriba).** La portada ofrece entrada rápida de investigador (tema, pregunta, abstract y objetivo) o recorrido guiado. La tarea `sintesis` compara las referencias aceptadas y devuelve consensos, contradicciones y brechas con implicación, confianza e índices de fuentes. El informe de evidencia reúne foco, síntesis, MDE y referencias; se imprime/guarda como PDF o descarga como texto. Los chips `fuerza` se renombraron a `Ajuste directo/parcial/tangencial`, porque miden pertinencia para el componente y no calidad metodológica.
 - **2026-07-13: selector de modo aclarado localmente.** La portada nombra explícitamente `Modo investigador` y `Modo guiado`, explica para quién sirve cada uno y muestra su recorrido resumido. Durante el trabajo, el encabezado conserva visible el modo activo y permite volver a cambiarlo.
 - **2026-07-13: procedencia bibliográfica aclarada localmente.** El paso Bibliografía indica que consulta directamente OpenAlex y Europe PMC, explica que Crossref/PubMed son parte de la cobertura agregada pero no endpoints separados, y declara que Scopus, Web of Science y Google Scholar aún no están integrados. Cada resultado muestra ahora su fuente directa como chip.
 - **2026-07-12: Reenfoque desde los artículos aceptados (desplegado).** En el paso de Bibliografía, con 2+ referencias aceptadas, aparece "Reenfocar desde mis artículos": propone un foco reformulado que emerge de lo que el investigador seleccionó, incluso si gira respecto al original. Adopta (actualiza idea/pregunta) o conserva el original. Ver `docs/vision-app.md` y `lab/decision_log.md`.
@@ -49,8 +57,8 @@ Confirmado por inspección de código, no solo por lo que dice `lab/project_stat
 
 - `node --check` pasa en los 3 archivos `.js` reales del proyecto (`web/api/generate.js`, `web/api/search.js`, `poster/src/build_poster.js`). Ver `docs/testing.md`.
 - No se corrió una verificación visual del póster en esta sesión (no se tocó `build_poster.js`).
-- No se abrió `web/index.html` en un navegador real en esta sesión.
 - El JavaScript embebido pasó `node --check` con Node 22.23.0. El contrato de `sintesis` pasó con `fetch` simulado y también en una llamada real directa a Anthropic: HTTP 200, consensos y brechas estructurados con confianza y fuentes. `vercel dev` en Windows sigue fallando para POST con `NotSupportedError: expect header not supported` aun bajo Node 22; el runtime y el backend se validaron por separado y el Preview construyó correctamente.
+- **2026-07-13 (segunda ronda): primera verificación real en navegador de punta a punta.** `web/index.html` sí se abrió en un navegador (Chromium headless vía Playwright, emulación iPhone 13) contra el Preview y luego contra producción, con las 8 etapas del Modo investigador recorridas y las llamadas reales a `/api/generate` y `/api/search` funcionando (no simuladas). 0 excepciones de JavaScript en ambas corridas. Encontró el bug de truncamiento en `mapa` descrito arriba, que ya se corrigió y redesplegó. `bash scripts/verify.sh` (sin `--network`) también se corrió y pasó, 0 fallos.
 
 ## Pendientes activos
 
@@ -58,3 +66,4 @@ Confirmado por inspección de código, no solo por lo que dice `lab/project_stat
 - Generar el QR hacia la URL de producción elegida.
 - Decidir cuál de los 3 alias de Vercel es "el" link oficial para el QR (`web-beta-hazel-49.vercel.app` es el que se usa hoy en la práctica, pero no se fijó explícitamente con `vercel alias set`).
 - Llenar `lab/roadmap.md` (sigue casi vacío).
+- Considerar si `friccion`, `pregunta` y `notas` (que se quedaron en el `maxTokens` default de 1600) necesitan el mismo margen que se le dio a `mapa` y `divulgacion`; por ahora no se ha visto evidencia de que trunquen, pero tampoco se probaron a fondo en esta ronda.

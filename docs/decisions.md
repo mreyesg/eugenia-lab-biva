@@ -55,3 +55,13 @@ Mismo formato que `lab/decision_log.md`, por consistencia:
 **Razón:** La única forma de que un secreto no quede en el historial de una sesión de agente es que el agente nunca lo reciba como texto en su contexto. Pedir la acción (generar clave, editar archivo) sin pedir el valor logra eso sin sacrificar que el agente orqueste el resto (borrar la clave vieja de Vercel, subir la nueva, verificar, redesplegar).
 
 **Impacto:** Este es el patrón a seguir la próxima vez que haga falta rotar o introducir un secreto nuevo en este proyecto: la escritura del valor la hace el humano en su editor, el agente solo mueve el valor entre archivo y destino final por pipes, nunca lo imprime ni lo lee con una herramienta que lo devuelva como texto visible.
+
+## [2026-07-13] — Usar el bypass de automatización de Vercel para probar Previews con Playwright, y apagarlo despues de cada uso
+
+**Contexto:** Antes de promover el Preview B+ a producción, se intentó un recorrido automatizado de las 8 etapas con Playwright (emulación móvil) contra la URL de Preview. Vercel protege todo Preview con un muro de login (devuelve 302 hacia `vercel.com/login`), así que un navegador headless sin sesión no puede pasar; probar contra `vercel dev` local tampoco sirve porque el adaptador en Windows falla al enviar `POST` (ver `docs/handoff.md`, entrada 2026-07-13 anterior).
+
+**Decisión:** Se habilitó el "Protection Bypass for Automation" del proyecto (`npx vercel project protection enable web --protection-bypass --format json`), que genera un secreto de un solo propósito para pasar por header (`x-vercel-protection-bypass`) sin exponer el Preview públicamente. Con ese secreto, Playwright completó el recorrido real de punta a punta (mapa, búsqueda, MDE, síntesis, informe, descarga e impresión) contra el Preview. Al terminar, el secreto se desactivó (`... disable web --protection-bypass --protection-bypass-secret <secreto>`) y se confirmó con `curl` que ya no funciona.
+
+**Razón:** Es el mecanismo que Vercel ofrece explícitamente para pruebas headless/CI contra Previews sin bajar la protección para el público general. Dejar el secreto activo indefinidamente, o reusar uno viejo, sería repetir el mismo tipo de riesgo que ya motivó la rotación de `ANTHROPIC_API_KEY` (secreto expuesto en el historial de una sesión de agente): mejor generarlo, usarlo, y apagarlo en la misma sesión.
+
+**Impacto:** Patrón reusable para la próxima vez que haga falta un recorrido automatizado contra un Preview: habilitar el bypass, correr las pruebas, apagarlo. No dejar el bypass encendido entre sesiones. La prueba automatizada contra producción (una vez promovido) no necesita nada de esto, porque producción no tiene el muro de login por defecto.

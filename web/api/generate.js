@@ -212,7 +212,7 @@ function buildMapa(p) {
     "Genera exactamente 4 componentes de un trabajo publicable, con estos nombres exactos en este orden: " +
     "'Justificacion y brecha', 'Metodos', 'Comparacion de resultados', 'Discusion y contraste'. " +
     "Para cada componente, que_necesito es una frase especifica de 1 a 2 oraciones sobre que evidencia bibliografica necesita esa seccion PARA ESTE TEMA en particular (por ejemplo, en Metodos: que enfoques metodologicos conviene revisar para elegir y defender el propio), no una definicion generica.";
-  return { system, user, schemaKey: "mapa", unwrap: (r) => r.perspectivas };
+  return { system, user, schemaKey: "mapa", unwrap: (r) => r.perspectivas, maxTokens: 2200 };
 }
 
 function buildDivulgacion(p) {
@@ -229,7 +229,7 @@ function buildDivulgacion(p) {
     `Objetivo general: ${s(preg.objetivo_general)}\n` +
     `Referencias aceptadas: ${refs}\n\n` +
     "Genera entre 5 y 8 secciones apropiadas para el formato elegido, en espanol, especificas a este proyecto. Cada seccion con un titulo y una descripcion breve de su contenido.";
-  return { system, user, schemaKey: "divulgacion", unwrap: (r) => r };
+  return { system, user, schemaKey: "divulgacion", unwrap: (r) => r, maxTokens: 2200 };
 }
 
 function buildNotas(p) {
@@ -392,6 +392,11 @@ export default async function handler(req, res) {
     }
     if (data.stop_reason === "refusal") {
       res.status(422).json({ error: "El agente declino responder a esta solicitud." });
+      return;
+    }
+    if (data.stop_reason === "max_tokens") {
+      console.error("Respuesta truncada por max_tokens en tarea:", task);
+      res.status(502).json({ error: "La respuesta del agente quedo incompleta. Intenta de nuevo." });
       return;
     }
 
