@@ -282,6 +282,7 @@ export default async function handler(req, res) {
       "Eres un asistente de investigacion bibliometrica. Conviertes el contexto de una investigacion y una perspectiva especifica en UNA consulta de busqueda academica efectiva, EN INGLES (la mayoria de la literatura cientifica esta en ingles). Usa terminos y nombres cientificos correctos (por ejemplo, nombres binomiales de especies en vez de nombres comunes). Devuelve solo la consulta, de 3 a 8 palabras clave, sin operadores booleanos.";
     const queryUser =
       `Tema: ${s(ctx.tema)}\n` +
+      `Abstract o descripcion: ${s(ctx.abstract)}\n` +
       `Problema: ${s(ctx.problema)}\n` +
       `Pregunta principal: ${s(ctx.pregunta_principal)}\n` +
       `Perspectiva: ${perspectiva}\n` +

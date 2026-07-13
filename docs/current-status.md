@@ -1,13 +1,15 @@
 # Current status (snapshot técnico para agentes)
 
-**Última actualización:** 2026-07-12.
+**Última actualización:** 2026-07-13.
 
 Este archivo es el snapshot *técnico/operativo* para que un agente nuevo sepa en qué estado está el código sin leer el chat. Para el snapshot *de investigación/estudiantes* (Kamila, fases del estudio de Plectranthus), ver `lab/project_state.md`, que se mantiene por separado y no se duplicó aquí.
 
 ## Infraestructura
 
+- **Runtime Node fijado en 22.x (2026-07-13):** `web/package.json`, `web/package-lock.json` y `web/.nvmrc` declaran Node 22. Como el equipo no tiene gestor de versiones y Chocolatey requiere privilegios administrativos, se instaló Node 22.23.0 portátil en `.tools/` (ignorado por Git). `scripts/vercel-dev-node22.ps1` inicia Vercel Dev en el puerto 3005 usando explícitamente ese runtime.
 - **Control de versiones:** existe desde 2026-07-12. Repo git inicializado en la raíz, primer commit hecho, y subido a GitHub como `mreyesg/eugenia-lab-biva` (privado). `.gitignore` (raíz y `web/.gitignore`) excluye `node_modules/`, `web/.env.local`, `web/.vercel/`; verificado con `git check-ignore` antes del primer commit que nada sensible quedó staged.
 - **Hosting:** Vercel, proyecto `web` (org `mreyesgs-projects`, `projectId: prj_NSR0I03nKcM0kyjKlg1bw4UBBM5P`).
+- **Preview B+ (2026-07-13):** `https://web-qkumuraw9-mreyesgs-projects.vercel.app`, deployment `dpl_8g6dn6eNYN6GRwLbke71rKekagRR`, construido con Node 22.23.0. Manuel abrió el Preview y confirmó que la diferencia entre Modo investigador y Modo guiado se entiende. No se promovió a producción.
 - **URL de producción:** `https://web-beta-hazel-49.vercel.app`. Confirmado con `vercel alias ls` que hay 3 alias apuntando al mismo deployment actual (13h de antigüedad al momento de revisar):
   - `web-beta-hazel-49.vercel.app` (la que usan `lab/next_session.md` y el README)
   - `web-mreyesgs-projects.vercel.app`
@@ -26,8 +28,11 @@ Este archivo es el snapshot *técnico/operativo* para que un agente nuevo sepa e
 
 Confirmado por inspección de código, no solo por lo que dice `lab/project_state.md` (aunque coincide):
 
-- Navegación de 8 etapas, persistencia en `localStorage`.
-- `POST /api/generate` acepta 7 tareas: `friccion`, `pregunta`, `mapa`, `divulgacion`, `notas`, `mde`, `reenfoque`. Devuelve 500 con `{"error":"El servidor no tiene configurada la clave de la API."}` si `ANTHROPIC_API_KEY` no está en el entorno donde corre.
+- Navegación adaptada por perfil, persistencia en `localStorage`. El modo investigador omite fricción, formulación guiada y reflexión; el modo guiado conserva el recorrido completo.
+- `POST /api/generate` acepta 8 tareas: `friccion`, `pregunta`, `mapa`, `divulgacion`, `notas`, `mde`, `sintesis`, `reenfoque`. Devuelve 500 con `{"error":"El servidor no tiene configurada la clave de la API."}` si `ANTHROPIC_API_KEY` no está en el entorno donde corre.
+- **2026-07-13: Fase B y primera entrega B+ desplegadas a Preview, no a producción.** La portada ofrece entrada rápida de investigador (tema, pregunta, abstract y objetivo) o recorrido guiado. La tarea `sintesis` compara las referencias aceptadas y devuelve consensos, contradicciones y brechas con implicación, confianza e índices de fuentes. El informe de evidencia reúne foco, síntesis, MDE y referencias; se imprime/guarda como PDF o descarga como texto. Los chips `fuerza` se renombraron a `Ajuste directo/parcial/tangencial`, porque miden pertinencia para el componente y no calidad metodológica.
+- **2026-07-13: selector de modo aclarado localmente.** La portada nombra explícitamente `Modo investigador` y `Modo guiado`, explica para quién sirve cada uno y muestra su recorrido resumido. Durante el trabajo, el encabezado conserva visible el modo activo y permite volver a cambiarlo.
+- **2026-07-13: procedencia bibliográfica aclarada localmente.** El paso Bibliografía indica que consulta directamente OpenAlex y Europe PMC, explica que Crossref/PubMed son parte de la cobertura agregada pero no endpoints separados, y declara que Scopus, Web of Science y Google Scholar aún no están integrados. Cada resultado muestra ahora su fuente directa como chip.
 - **2026-07-12: Reenfoque desde los artículos aceptados (desplegado).** En el paso de Bibliografía, con 2+ referencias aceptadas, aparece "Reenfocar desde mis artículos": propone un foco reformulado que emerge de lo que el investigador seleccionó, incluso si gira respecto al original. Adopta (actualiza idea/pregunta) o conserva el original. Ver `docs/vision-app.md` y `lab/decision_log.md`.
 - **2026-07-12: Recall mejorado (desplegado).** `search.js` ahora busca en OpenAlex y Europe PMC (ambas gratis, sin llave), intercala las dos fuentes para que ninguna domine, deduplica por DOI/título, y reintenta con una consulta más amplia si salen menos de 3 resultados. Probado en producción: para una consulta biomédica devuelve 4 de OpenAlex y 4 de Europe PMC, con aporte y fuerza intactos. Nota de diseño: se probó ordenar por citas pero sesgaba todo hacia OpenAlex, por eso se intercala en vez de ordenar.
 - **2026-07-12: arrancó la Fase A del reposicionamiento a herramienta de investigador** (ver `docs/vision-app.md` y `lab/decision_log.md`). Lo desplegado y probado en producción hoy:
@@ -45,6 +50,7 @@ Confirmado por inspección de código, no solo por lo que dice `lab/project_stat
 - `node --check` pasa en los 3 archivos `.js` reales del proyecto (`web/api/generate.js`, `web/api/search.js`, `poster/src/build_poster.js`). Ver `docs/testing.md`.
 - No se corrió una verificación visual del póster en esta sesión (no se tocó `build_poster.js`).
 - No se abrió `web/index.html` en un navegador real en esta sesión.
+- El JavaScript embebido pasó `node --check` con Node 22.23.0. El contrato de `sintesis` pasó con `fetch` simulado y también en una llamada real directa a Anthropic: HTTP 200, consensos y brechas estructurados con confianza y fuentes. `vercel dev` en Windows sigue fallando para POST con `NotSupportedError: expect header not supported` aun bajo Node 22; el runtime y el backend se validaron por separado y el Preview construyó correctamente.
 
 ## Pendientes activos
 

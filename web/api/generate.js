@@ -149,6 +149,28 @@ const SCHEMAS = {
         }
       }
     }
+  },
+  sintesis: {
+    type: "object",
+    additionalProperties: false,
+    required: ["hallazgos"],
+    properties: {
+      hallazgos: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["tipo", "hallazgo", "implicacion", "fuentes", "confianza"],
+          properties: {
+            tipo: { type: "string", enum: ["consenso", "contradiccion", "brecha"] },
+            hallazgo: { type: "string" },
+            implicacion: { type: "string" },
+            fuentes: { type: "array", items: { type: "integer" } },
+            confianza: { type: "string", enum: ["alta", "media", "baja"] }
+          }
+        }
+      }
+    }
   }
 };
 
@@ -251,6 +273,28 @@ function buildMde(p) {
   return { system, user, schemaKey: "mde", unwrap: (r) => r.dimensiones, maxTokens: 2400 };
 }
 
+function buildSintesis(p) {
+  const idea = p.idea || {};
+  const preg = p.pregunta || {};
+  const refs = Array.isArray(p.referencias) ? p.referencias : [];
+  const lista = refs
+    .map((r, i) =>
+      `[${i + 1}] ${s(r.titulo)} (${s(r.autores)}, ${s(r.anio)})\n` +
+      `    Resumen: ${s(r.resumen)}\n` +
+      `    Aporte identificado: ${s(r.justificacion)}`
+    )
+    .join("\n");
+  const system =
+    "Eres un analista de evidencia cientifica. Comparas articulos ya seleccionados para identificar convergencias, contradicciones y brechas relevantes para una investigacion. Trabajas solo con los titulos, resumenes y aportes provistos. No conviertes ausencia de informacion en prueba de ausencia, no inventas resultados y distingues claramente una brecha del corpus provisto de una brecha demostrada de toda la literatura. Respondes unicamente con datos estructurados.";
+  const user =
+    `Tema: ${s(idea.tema)}\n` +
+    `Pregunta principal: ${s(preg.pregunta_principal)}\n` +
+    `Objetivo general: ${s(preg.objetivo_general)}\n\n` +
+    `Fuentes aceptadas (numeradas):\n${lista}\n\n` +
+    "Genera entre 3 y 7 hallazgos utiles. Usa tipo 'consenso' cuando dos o mas fuentes converjan; 'contradiccion' cuando reporten resultados, metodos o interpretaciones incompatibles; y 'brecha' para algo relevante que este corpus no resuelve. Para cada hallazgo explica su implicacion concreta para este proyecto, asigna solamente los numeros de las fuentes que realmente lo sostienen y declara confianza alta, media o baja segun la claridad y cantidad de evidencia disponible. Si no hay evidencia suficiente para una contradiccion, no la inventes. En las brechas, redacta explicitamente que se trata de una brecha observada en el corpus seleccionado.";
+  return { system, user, schemaKey: "sintesis", unwrap: (r) => r.hallazgos, maxTokens: 2600 };
+}
+
 function buildReenfoque(p) {
   const idea = p.idea || {};
   const preg = p.pregunta || {};
@@ -281,6 +325,7 @@ const BUILDERS = {
   divulgacion: buildDivulgacion,
   notas: buildNotas,
   mde: buildMde,
+  sintesis: buildSintesis,
   reenfoque: buildReenfoque
 };
 

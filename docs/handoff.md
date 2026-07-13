@@ -12,7 +12,42 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 
 ## Última entrega
 
-**Fecha:** 2026-07-12 (tercera ronda del mismo día)
+**Fecha:** 2026-07-13
+**Quién:** sesión de Codex.
+
+### Qué se hizo
+
+- Manuel aprobó la ruta B+: entrada rápida de investigador, síntesis trazable e informe de evidencia.
+- Se implementó el modo investigador: recibe tema, pregunta, abstract y objetivo; omite fricción, formulación guiada y reflexión. El modo guiado conserva el flujo completo.
+- El selector de entrada ahora diferencia explícitamente `Modo investigador` y `Modo guiado`, con criterios y recorridos visibles; el encabezado muestra el modo activo y permite cambiarlo.
+- Se implementó `sintesis` como octava tarea de `generate.js`: consenso, contradicción y brecha con implicación, confianza y fuentes numeradas. La interfaz enlaza cada hallazgo a las referencias aceptadas.
+- Se añadió un informe de evidencia con foco, síntesis, MDE y bibliografía aceptada. Permite imprimir/guardar PDF y descargar texto.
+- Los chips de `fuerza` ahora dicen "Ajuste directo/parcial/tangencial" para no confundir pertinencia temática con calidad metodológica.
+- El paso Bibliografía aclara que consulta directamente OpenAlex y Europe PMC, distingue la cobertura agregada de Crossref/PubMed y declara que Scopus, Web of Science y Google Scholar no están integrados. Cada resultado muestra su fuente directa.
+- Se creó el Preview `https://web-qkumuraw9-mreyesgs-projects.vercel.app` con Node 22.23.0. Manuel confirmó allí que la diferencia entre los dos modos se entiende.
+
+### Verificación
+
+- El proyecto quedó fijado en Node 22.x y Node 22.23.0 portátil pasó todos los chequeos de sintaxis. La distribución local está en `.tools/`, excluida de Git, y se ejecuta mediante `scripts/vercel-dev-node22.ps1`.
+- Pasaron `node --check` para `generate.js`, `search.js`, `build_poster.js` y el JavaScript extraído de `index.html`.
+- Pasó una prueba aislada del contrato del handler `sintesis` y una llamada real directa a Anthropic: HTTP 200 con consensos y brechas, confianza y fuentes válidas.
+- `bash scripts/verify.sh` no pudo ejecutarse porque WSL no tiene una distribución instalada; se corrió manualmente su equivalente en PowerShell.
+- Vercel Dev sirve GET localmente, pero su adaptador en Windows falla al enviar POST con `NotSupportedError: expect header not supported`, tanto en Node 24 como en Node 22. El backend sí quedó validado directamente y el Preview construyó sin error.
+
+### Qué quedó roto o a medias
+
+- Los cambios están en Preview, no en producción. Falta recorrer búsqueda, MDE, síntesis, informe, descarga e impresión en teléfono.
+- El informe es una primera salida de Fase C. Todavía no genera estilos ACS/APA/Vancouver ni párrafos específicos para métodos y discusión.
+
+### Próximo paso recomendado
+
+1. Continuar en el Preview ya creado y probar búsqueda, MDE, síntesis, informe, impresión y descarga móvil.
+2. Corregir cualquier detalle visual y promover a producción con aprobación de Manuel.
+3. Continuar Fase C con tabla comparativa y borradores citados de justificación, métodos y discusión.
+
+---
+
+**Registro anterior: 2026-07-12 (tercera ronda del mismo día)**
 **Quién:** sesión de Claude Code.
 
 ### Qué se hizo

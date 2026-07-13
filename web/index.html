@@ -60,6 +60,8 @@
     gap:10px;
     margin-bottom:14px;
   }
+  .brand-main{display:flex;align-items:center;gap:10px;min-width:0;}
+  .mode-switch{margin-left:auto;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;border-radius:8px;padding:7px 9px;font:600 11px 'Inter',sans-serif;cursor:pointer;white-space:nowrap;}
   .brand .leaf{
     width:26px;height:26px;flex-shrink:0;
   }
@@ -295,6 +297,26 @@
   }
   .final-card h2{color:#fff;}
   .final-card p{color:var(--moss-light);}
+  .mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0;}
+  .mode-option{border:1.5px solid #DCE5D5;background:#fff;border-radius:10px;padding:16px;text-align:left;cursor:pointer;color:var(--ink);}
+  .mode-option:hover{border-color:var(--moss);background:var(--moss-pale);}
+  .mode-name{display:block;color:var(--accent);font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:6px;}
+  .mode-option strong{display:block;color:var(--forest);font-size:15px;margin-bottom:7px;}
+  .mode-option span{display:block;color:var(--ink-soft);font-size:12.5px;line-height:1.45;}
+  .mode-option .mode-route{margin-top:10px;padding-top:9px;border-top:1px solid #E4DFCF;color:var(--forest);font-weight:600;}
+  .finding{border-left:4px solid var(--moss);}
+  .finding.contradiccion{border-left-color:var(--accent);}
+  .finding.brecha{border-left-color:#476A8A;}
+  .finding-label{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px;}
+  .report-actions{display:flex;gap:10px;margin:16px 0;}
+  .report-actions .btn{flex:1;}
+  @media(max-width:400px){.mode-grid{grid-template-columns:1fr;}}
+  @media print{
+    body,#app{background:#fff;max-width:none;}
+    .header,.footer-nav,.report-actions{display:none!important;}
+    main{padding:0;max-width:900px;margin:0 auto;}
+    .card,.ref-item{box-shadow:none;break-inside:avoid;}
+  }
 </style>
 </head>
 <body>
@@ -309,6 +331,7 @@ const STAGES = [
   {key:"mapa", label:"Componentes del trabajo", short:"Componentes"},
   {key:"bibliografia", label:"Bibliografía viva", short:"Biblio"},
   {key:"mde", label:"Matriz de Decisión", short:"Matriz"},
+  {key:"sintesis", label:"Síntesis de evidencia", short:"Síntesis"},
   {key:"notas", label:"Notas de lectura", short:"Notas"},
   {key:"divulgacion", label:"Divulgación", short:"Divulgar"},
   {key:"reflexion", label:"Reflexión", short:"Reflexión"}
@@ -338,7 +361,8 @@ function defaultProject(){
     id: "proj_" + Date.now(),
     createdAt: new Date().toISOString(),
     step: -1, // -1 = intro screen
-    idea: {tema:"", porque:"", yaSe:"", noEntiendo:"", tension:""},
+    mode: "guiado",
+    idea: {tema:"", porque:"", yaSe:"", noEntiendo:"", tension:"", abstract:""},
     friccionOpciones: [],
     friccion: {seleccion:"", notas:""},
     pregunta: {problema:"", pregunta_principal:"", preguntas_secundarias:["",""], objetivo_general:"", objetivos_especificos:["",""], delimitaciones:""},
@@ -346,6 +370,7 @@ function defaultProject(){
     bibliografia: [],
     reenfoque: null,
     mde: [],
+    sintesis: [],
     notas: [],
     divulgacion: {formato:"", outline:null},
     reflexion: {cambio:"", referencia:"", dificultad:"", usoIA:""}
@@ -358,6 +383,9 @@ function migrateState(){
   const def = defaultProject();
   for(const k in def){
     if(state[k] === undefined) state[k] = def[k];
+  }
+  for(const k in def.idea){
+    if(state.idea[k] === undefined) state.idea[k] = def.idea[k];
   }
 }
 
@@ -421,20 +449,37 @@ function goToStep(i){
   render();
   window.scrollTo(0,0);
 }
-function nextStep(){ goToStep(Math.min(state.step+1, STAGES.length-1)); }
-function prevStep(){ goToStep(Math.max(state.step-1, 0)); }
+function workflowStages(){
+  if(state.mode !== "investigador") return STAGES.map((s,i)=>i);
+  const keys = ["idea","mapa","bibliografia","mde","sintesis","notas","divulgacion"];
+  return keys.map(k=>STAGES.findIndex(s=>s.key===k));
+}
+function nextStep(){
+  const flow = workflowStages();
+  const pos = flow.indexOf(state.step);
+  goToStep(flow[Math.min(pos+1, flow.length-1)]);
+}
+function prevStep(){
+  const flow = workflowStages();
+  const pos = flow.indexOf(state.step);
+  goToStep(flow[Math.max(pos-1, 0)]);
+}
 
 // Requisito minimo para poder avanzar de cada paso (los demas no bloquean).
 function stepComplete(i){
   const k = STAGES[i].key;
-  if(k === "idea") return !!(state.idea.tema && state.idea.tema.trim());
+  if(k === "idea") {
+    const tema = !!(state.idea.tema && state.idea.tema.trim());
+    if(state.mode === "investigador") return tema && !!(state.pregunta.pregunta_principal && state.pregunta.pregunta_principal.trim());
+    return tema;
+  }
   if(k === "friccion") return !!(state.friccion.seleccion && state.friccion.seleccion.trim());
   if(k === "pregunta") return !!(state.pregunta.pregunta_principal && state.pregunta.pregunta_principal.trim());
   return true;
 }
 function continueHint(i){
   const k = STAGES[i].key;
-  if(k === "idea") return "Escribe al menos el tema para continuar.";
+  if(k === "idea") return state.mode === "investigador" ? "Escribe el tema y la pregunta principal para continuar." : "Escribe al menos el tema para continuar.";
   if(k === "friccion") return "Elige o escribe una fricción conceptual para continuar.";
   if(k === "pregunta") return "Necesitas al menos la pregunta principal para continuar.";
   return "";
@@ -470,12 +515,14 @@ function render(){
 }
 
 function renderHeader(){
-  const nodes = STAGES.map((s,i) => {
-    const cls = i < state.step ? "done" : (i === state.step ? "current" : "");
-    const lineCls = i < state.step ? "filled" : "";
+  const flow = workflowStages();
+  const currentPos = flow.indexOf(state.step);
+  const nodes = flow.map((stageIdx,pos) => {
+    const cls = pos < currentPos ? "done" : (stageIdx === state.step ? "current" : "");
+    const lineCls = pos < currentPos ? "filled" : "";
     return `
-      ${i>0 ? `<div class="vine-line ${lineCls}"></div>` : ""}
-      <div class="vine-node" data-step="${i}">
+      ${pos>0 ? `<div class="vine-line ${lineCls}"></div>` : ""}
+      <div class="vine-node" data-step="${stageIdx}">
         <div class="leaf-dot ${cls}"></div>
       </div>
     `;
@@ -484,21 +531,25 @@ function renderHeader(){
   return `
   <div class="header">
     <div class="brand">
-      <div class="leaf">${LEAF_SVG}</div>
-      <div class="brand-text">
-        <h1>Biblioteca Viva</h1>
-        <div class="tag">Organiza tu investigación, paso a paso</div>
+      <div class="brand-main">
+        <div class="leaf">${LEAF_SVG}</div>
+        <div class="brand-text">
+          <h1>Biblioteca Viva</h1>
+          <div class="tag">${state.mode === "investigador" ? "Modo investigador · evidencia directa" : "Modo guiado · formulación paso a paso"}</div>
+        </div>
       </div>
+      <button class="mode-switch" id="btnChangeMode">Cambiar modo</button>
     </div>
     <div class="vine">${nodes}</div>
-    <div class="step-label">Paso ${state.step+1} de ${STAGES.length} · <b>${STAGES[state.step].label}</b></div>
+    <div class="step-label">Etapa ${currentPos+1} de ${flow.length} · <b>${STAGES[state.step].label}</b></div>
   </div>`;
 }
 
 function renderFooterNav(){
-  const isLast = state.step === STAGES.length - 1;
+  const flow = workflowStages();
+  const isLast = state.step === flow[flow.length - 1];
   const complete = stepComplete(state.step);
-  const backBtn = state.step > 0
+  const backBtn = flow.indexOf(state.step) > 0
     ? `<button class="btn btn-ghost" id="btnBack">Atrás</button>`
     : `<button class="btn btn-ghost" id="btnHome">Inicio</button>`;
   const fwdBtn = !isLast
@@ -529,21 +580,41 @@ function renderIntro(){
       <h2>Fortalece tu investigación con la mejor evidencia</h2>
       <p>Una herramienta para investigadores y estudiantes graduados: encuentra las fuentes que mejor sostienen cada parte de tu trabajo, y tradúcelas en criterios de decisión con la Matriz de Decisión. Sirve igual para empezar un proyecto o para reforzar uno en curso.</p>
     </div>
-    <div class="card tint">
-      <h3>El recorrido</h3>
-      <ul class="plain">
-        ${STAGES.map((s,i)=>`<li><b>${i+1}. ${s.label}</b></li>`).join("")}
-      </ul>
+    <div style="margin-top:18px;">
+      <h3 style="font-size:18px;margin-bottom:4px;">¿Cómo quieres comenzar?</h3>
+      <p style="font-size:13.5px;color:var(--ink-soft);margin:0;">Escoge según lo que ya tienes. Ambos modos llegan al mismo motor de evidencia.</p>
+    </div>
+    <div class="mode-grid">
+      <button class="mode-option" id="btnResearcher">
+        <span class="mode-name">Modo investigador</span>
+        <strong>Ya tengo una pregunta, propuesta o abstract</strong>
+        <span>Para proyectos en curso. Entras con tu material existente y omites la formulación básica.</span>
+        <span class="mode-route">Pregunta o abstract → evidencia → decisiones</span>
+      </button>
+      <button class="mode-option" id="btnGuided">
+        <span class="mode-name">Modo guiado</span>
+        <strong>Todavía estoy definiendo mi investigación</strong>
+        <span>Para quien comienza con un tema. EugenIA ayuda a construir la fricción, la pregunta y los objetivos.</span>
+        <span class="mode-route">Idea → pregunta → evidencia → decisiones</span>
+      </button>
     </div>
     <div class="card">
       <p style="font-size:13.5px;color:var(--ink-soft);margin:0;">Tu progreso se guarda automáticamente en este dispositivo. Puedes cerrar la app y volver cuando quieras.</p>
     </div>
-    <button class="btn btn-primary" id="btnStart">Comenzar mi proyecto</button>
   </main>`;
 }
 
 function attachIntroHandlers(){
-  document.getElementById("btnStart").onclick = () => { goToStep(0); };
+  document.getElementById("btnResearcher").onclick = () => {
+    state.mode = "investigador";
+    saveState();
+    goToStep(STAGES.findIndex(s=>s.key==="idea"));
+  };
+  document.getElementById("btnGuided").onclick = () => {
+    state.mode = "guiado";
+    saveState();
+    goToStep(STAGES.findIndex(s=>s.key==="idea"));
+  };
 }
 
 /* ============ STEP DISPATCH ============ */
@@ -559,6 +630,7 @@ function renderStep(i){
     case "mapa": return renderMapa();
     case "bibliografia": return renderBibliografia();
     case "mde": return renderMDE();
+    case "sintesis": return renderSintesis();
     case "notas": return renderNotas();
     case "divulgacion": return renderDivulgacion();
     case "reflexion": return renderReflexion();
@@ -573,6 +645,21 @@ function renderLoadingCard(){
 /* ============ STEP 1: IDEA ============ */
 function renderIdea(){
   const d = state.idea;
+  if(state.mode === "investigador"){
+    return `
+    <div class="card">
+      <div class="ai-badge">Entrada rápida de investigador</div>
+      <label>Tema o título de trabajo</label>
+      <input type="text" id="f_tema" value="${escapeAttr(d.tema)}" placeholder="Ej. optimización de extracción de compuestos fenólicos">
+      <label>Pregunta principal</label>
+      <textarea id="fast_pregunta" placeholder="Pega o escribe la pregunta que quieres fortalecer">${escapeHtml(state.pregunta.pregunta_principal)}</textarea>
+      <label>Abstract o descripción del proyecto</label>
+      <textarea id="f_abstract" style="min-height:150px;" placeholder="Opcional. Pega tu abstract, propuesta o contexto disponible para mejorar el mapa de evidencia.">${escapeHtml(d.abstract)}</textarea>
+      <label>Objetivo general</label>
+      <textarea id="fast_objetivo" placeholder="Opcional">${escapeHtml(state.pregunta.objetivo_general)}</textarea>
+      <p class="hint">EugenIA usará este contexto para identificar qué evidencia necesita cada parte del trabajo. Podrás revisar todo antes de buscar.</p>
+    </div>`;
+  }
   return `
   <div class="card">
     <label>¿Qué tema te interesa investigar?</label>
@@ -593,6 +680,12 @@ function attachIdeaHandlers(){
     const el = document.getElementById("f_"+k);
     if(el) el.oninput = () => { state.idea[k] = el.value; saveState(); refreshNav(); };
   });
+  const abstractEl = document.getElementById("f_abstract");
+  if(abstractEl) abstractEl.oninput = () => { state.idea.abstract = abstractEl.value; saveState(); };
+  const preguntaEl = document.getElementById("fast_pregunta");
+  if(preguntaEl) preguntaEl.oninput = () => { state.pregunta.pregunta_principal = preguntaEl.value; saveState(); refreshNav(); };
+  const objetivoEl = document.getElementById("fast_objetivo");
+  if(objetivoEl) objetivoEl.oninput = () => { state.pregunta.objetivo_general = objetivoEl.value; saveState(); };
 }
 
 /* ============ STEP 2: FRICCIÓN ============ */
@@ -775,8 +868,12 @@ function renderBibliografia(){
       <p style="margin:0;">Para que EugenIA te proponga artículos base, primero genera el <b>mapa bibliográfico</b> en el paso anterior. Aun así puedes añadir referencias manualmente más abajo.</p>
     </div>
   ` : `
-    <div class="ai-badge">${AI_ICON} Artículos sugeridos por EugenIA</div>
-    <p style="font-size:13.5px;color:var(--ink-soft);margin:0 0 12px 0;">Busca artículos reales (vía OpenAlex, que agrega Crossref y PubMed) para apoyar cada perspectiva de tu mapa. Revisa el aporte de cada uno y añade los que te sirvan.</p>
+    <div class="ai-badge">${AI_ICON} Resultados científicos evaluados por EugenIA</div>
+    <div class="card tint" style="padding:14px;margin-bottom:12px;">
+      <p style="font-size:13.5px;margin:0 0 7px 0;"><b>Fuentes consultadas directamente:</b> OpenAlex y Europe PMC.</p>
+      <p style="font-size:12.5px;color:var(--ink-soft);margin:0;">OpenAlex reúne metadatos de múltiples proveedores, entre ellos Crossref y PubMed, pero Biblioteca Viva no consulta Crossref ni PubMed por separado. Scopus, Web of Science y Google Scholar todavía no están integrados.</p>
+    </div>
+    <p style="font-size:13.5px;color:var(--ink-soft);margin:0 0 12px 0;">Busca artículos reales para apoyar cada componente del trabajo. EugenIA evalúa su ajuste al proyecto; tú decides cuáles aceptar.</p>
     ${mapa.map((m,i)=>renderPerspectivaBusqueda(m,i)).join("")}
     <div class="divider"></div>
   `}
@@ -906,15 +1003,16 @@ function descartarReenfoque(){
   render();
 }
 
-// Señales bibliométricas de una fuente, como chips: tipo de documento, fuerza de
-// la evidencia (evaluada por IA), revista y acceso abierto. Las citas y el año van
+// Señales bibliométricas de una fuente, como chips: tipo de documento, ajuste
+// temático (evaluado por IA), revista y acceso abierto. Las citas y el año van
 // en la línea de meta, aparte.
 function signalChips(r){
   const chips = [];
+  if(r.fuente) chips.push(`<span class="chip" style="background:#E2EDF3;color:#31566B;">Fuente: ${escapeHtml(r.fuente)}</span>`);
   if(r.tipo_doc) chips.push(`<span class="chip" style="background:#ECEAE3;color:#5B5B50;">${escapeHtml(r.tipo_doc)}</span>`);
-  if(r.fuerza === "alta") chips.push(`<span class="chip">Evidencia fuerte</span>`);
-  else if(r.fuerza === "media") chips.push(`<span class="chip pending">Evidencia media</span>`);
-  else if(r.fuerza === "baja") chips.push(`<span class="chip" style="background:#ECEAE3;color:#6B6B60;">Tangencial</span>`);
+  if(r.fuerza === "alta") chips.push(`<span class="chip">Ajuste directo</span>`);
+  else if(r.fuerza === "media") chips.push(`<span class="chip pending">Ajuste parcial</span>`);
+  else if(r.fuerza === "baja") chips.push(`<span class="chip" style="background:#ECEAE3;color:#6B6B60;">Ajuste tangencial</span>`);
   if(r.revista) chips.push(`<span class="chip" style="background:#ECEAE3;color:#5B5B50;">${escapeHtml(truncar(r.revista,28))}</span>`);
   if(r.oa) chips.push(`<span class="chip">Acceso abierto</span>`);
   if(!chips.length) return "";
@@ -971,6 +1069,7 @@ async function buscarArticulos(i){
         que_necesito: m.que_necesito,
         contexto: {
           tema: state.idea.tema,
+          abstract: state.idea.abstract,
           problema: state.pregunta.problema,
           pregunta_principal: state.pregunta.pregunta_principal
         }
@@ -1128,6 +1227,64 @@ async function generarMDE(){
   });
   if(result && Array.isArray(result)){
     state.mde = result;
+    saveState();
+  }
+  render();
+}
+
+/* ============ SÍNTESIS DE EVIDENCIA ============ */
+function renderSourceLinks(fuentes, refs){
+  return (Array.isArray(fuentes)?fuentes:[])
+    .map(n=>refs[n-1])
+    .filter(Boolean)
+    .map(r=>{
+      const url = refUrl(r);
+      const label = escapeHtml(truncar(r.titulo, 58));
+      return url
+        ? `<a class="chip" href="${escapeAttr(url)}" target="_blank" rel="noopener" style="text-decoration:none;">${label}</a>`
+        : `<span class="chip">${label}</span>`;
+    }).join("");
+}
+
+function renderSintesis(){
+  const refs = state.bibliografia.filter(r=>r.estado==="aceptada");
+  const hallazgos = state.sintesis || [];
+  if(refs.length < 2){
+    return `<div class="card tint"><p style="margin:0;">La síntesis comparativa necesita al menos dos referencias aceptadas. Vuelve a <b>Bibliografía viva</b> para ampliar el corpus.</p></div>`;
+  }
+  const intro = `
+    <div class="card">
+      <h3>Síntesis trazable</h3>
+      <p>Compara el corpus seleccionado para revelar convergencias, contradicciones y preguntas que todavía no resuelve.</p>
+      <p class="hint">El análisis se basa en los resúmenes disponibles. Una brecha aquí significa una brecha del corpus seleccionado, no necesariamente de toda la literatura.</p>
+      <button class="btn btn-accent" id="btnSintesis" style="width:100%;">${hallazgos.length?"Regenerar síntesis":"Analizar evidencia aceptada"}</button>
+    </div>`;
+  if(!hallazgos.length) return intro;
+  const cards = hallazgos.map(h=>`
+    <div class="card finding ${escapeAttr(h.tipo)}">
+      <div class="finding-label">${escapeHtml(h.tipo)} · confianza ${escapeHtml(h.confianza)}</div>
+      <h3 style="font-size:16px;">${escapeHtml(h.hallazgo)}</h3>
+      <p style="font-size:13.5px;"><b>Implicación para el proyecto:</b> ${escapeHtml(h.implicacion)}</p>
+      <div>${renderSourceLinks(h.fuentes, refs) || `<span class="hint">Sin fuentes específicas asignadas.</span>`}</div>
+    </div>`).join("");
+  return `<div class="ai-badge">${AI_ICON} Síntesis generada por EugenIA</div>${cards}${intro}`;
+}
+
+function attachSintesisHandlers(){
+  const btn = document.getElementById("btnSintesis");
+  if(btn) btn.onclick = generarSintesis;
+}
+
+async function generarSintesis(){
+  const refs = state.bibliografia.filter(r=>r.estado==="aceptada");
+  if(refs.length < 2) return;
+  const referencias = refs.map(r=>({
+    titulo:r.titulo, autores:r.autores, anio:r.anio,
+    resumen:r.resumen||"", justificacion:r.justificacion||""
+  }));
+  const result = await callAgent("sintesis", {idea:state.idea, pregunta:state.pregunta, referencias});
+  if(result && Array.isArray(result)){
+    state.sintesis = result;
     saveState();
   }
   render();
@@ -1306,6 +1463,7 @@ function attachStepHandlers(i){
     mapa: attachMapaHandlers,
     bibliografia: attachBibliografiaHandlers,
     mde: attachMdeHandlers,
+    sintesis: attachSintesisHandlers,
     notas: attachNotasHandlers,
     divulgacion: attachDivulgacionHandlers,
     reflexion: attachReflexionHandlers
@@ -1320,6 +1478,8 @@ function attachStepHandlers(i){
   if(btnNext) btnNext.onclick = nextStep;
   const btnFinish = document.getElementById("btnFinish");
   if(btnFinish) btnFinish.onclick = showSummary;
+  const btnChangeMode = document.getElementById("btnChangeMode");
+  if(btnChangeMode) btnChangeMode.onclick = () => { goToStep(-1); };
 }
 
 /* ============ SUMMARY ============ */
@@ -1346,15 +1506,87 @@ function showSummary(){
         <h3 style="font-size:15px;">Matriz de Decisión</h3>
         <p>${(p.mde||[]).length} dimensiones de decisión fundamentadas en tu evidencia</p>
         <div class="divider"></div>
+        <h3 style="font-size:15px;">Síntesis de evidencia</h3>
+        <p>${(p.sintesis||[]).length} hallazgos entre consensos, contradicciones y brechas</p>
+        <div class="divider"></div>
         <h3 style="font-size:15px;">Formato de divulgación</h3>
         <p>${escapeHtml(p.divulgacion.formato) || "(sin elegir)"}</p>
       </div>
+      <button class="btn btn-accent" id="btnInforme" style="width:100%;margin-bottom:10px;">Abrir informe de evidencia</button>
       <button class="btn btn-ghost" id="btnVolverEditar" style="width:100%;margin-bottom:10px;">Volver a editar</button>
       <button class="btn btn-primary" id="btnNuevoProyecto" style="width:100%;">Empezar un proyecto nuevo</button>
     </main>
   `;
-  document.getElementById("btnVolverEditar").onclick = () => { goToStep(STAGES.length-1); };
+  document.getElementById("btnInforme").onclick = showEvidenceReport;
+  document.getElementById("btnVolverEditar").onclick = () => {
+    const flow = workflowStages();
+    goToStep(flow[flow.length-1]);
+  };
   document.getElementById("btnNuevoProyecto").onclick = resetProject;
+}
+
+function citationText(r, i){
+  const doi = r.doi ? ` DOI: ${String(r.doi).replace(/^https?:\/\/(dx\.)?doi\.org\//i,"")}.` : "";
+  return `[${i+1}] ${r.autores||"Autor no disponible"} (${r.anio||"s.f."}). ${r.titulo}.${r.revista?` ${r.revista}.`:""}${doi}`;
+}
+
+function reportSection(title, body){
+  return `<section class="card"><h2 style="font-size:20px;">${title}</h2>${body}</section>`;
+}
+
+function showEvidenceReport(){
+  const refs = state.bibliografia.filter(r=>r.estado==="aceptada");
+  const synthesis = (state.sintesis||[]).map(h=>`
+    <div class="finding ${escapeAttr(h.tipo)}" style="padding:12px 14px;margin:10px 0;">
+      <div class="finding-label">${escapeHtml(h.tipo)} · confianza ${escapeHtml(h.confianza)}</div>
+      <p><b>${escapeHtml(h.hallazgo)}</b></p>
+      <p>${escapeHtml(h.implicacion)}</p>
+      <p class="hint">Fuentes: ${(h.fuentes||[]).map(n=>`[${n}]`).join(", ")||"No asignadas"}</p>
+    </div>`).join("") || `<p>No se ha generado una síntesis.</p>`;
+  const matrix = (state.mde||[]).map(d=>`
+    <tr><td>${escapeHtml(d.dimension)}</td><td>${escapeHtml(d.hallazgo_evidencia)}</td><td>${escapeHtml(d.criterio_adoptado)}</td><td>${(d.fuentes||[]).map(n=>`[${n}]`).join(", ")}</td></tr>`).join("");
+  const matrixHtml = matrix ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr><th>Dimensión</th><th>Evidencia</th><th>Criterio</th><th>Fuentes</th></tr></thead><tbody>${matrix}</tbody></table></div>` : `<p>No se ha generado una Matriz de Decisión.</p>`;
+  const bibliography = refs.map((r,i)=>`<li style="margin-bottom:10px;">${escapeHtml(citationText(r,i))}</li>`).join("") || `<li>No hay referencias aceptadas.</li>`;
+  const app = document.getElementById("app");
+  app.innerHTML = `<main style="padding-bottom:40px;">
+    <div class="final-card"><h1 style="color:#fff;font-size:25px;">Informe de evidencia</h1><p>Biblioteca Viva · EugenIA Lab</p></div>
+    <div class="report-actions">
+      <button class="btn btn-ghost" id="btnBackReport">Volver</button>
+      <button class="btn btn-ghost" id="btnTextReport">Descargar texto</button>
+      <button class="btn btn-primary" id="btnPrintReport">Imprimir / PDF</button>
+    </div>
+    ${reportSection("Foco de investigación", `<p><b>Tema:</b> ${escapeHtml(state.idea.tema)}</p><p><b>Pregunta:</b> ${escapeHtml(state.pregunta.pregunta_principal)}</p><p><b>Objetivo:</b> ${escapeHtml(state.pregunta.objetivo_general)||"No definido"}</p>`)}
+    ${reportSection("Síntesis de evidencia", synthesis)}
+    ${reportSection("Matriz de Decisión", matrixHtml)}
+    ${reportSection("Referencias aceptadas", `<ol style="padding-left:22px;">${bibliography}</ol>`)}
+    <p class="hint">Análisis generado a partir de títulos y resúmenes disponibles. Debe verificarse contra los textos completos antes de publicación o toma de decisiones definitiva.</p>
+  </main>`;
+  document.querySelectorAll("th,td").forEach(el=>{el.style.border="1px solid #DCE5D5";el.style.padding="8px";el.style.textAlign="left";el.style.verticalAlign="top";});
+  document.getElementById("btnBackReport").onclick = showSummary;
+  document.getElementById("btnPrintReport").onclick = () => window.print();
+  document.getElementById("btnTextReport").onclick = downloadEvidenceReport;
+  window.scrollTo(0,0);
+}
+
+function downloadEvidenceReport(){
+  const refs = state.bibliografia.filter(r=>r.estado==="aceptada");
+  const lines = [
+    "INFORME DE EVIDENCIA | BIBLIOTECA VIVA",
+    "", `Tema: ${state.idea.tema}`, `Pregunta: ${state.pregunta.pregunta_principal}`,
+    `Objetivo: ${state.pregunta.objetivo_general||"No definido"}`, "", "SÍNTESIS DE EVIDENCIA"
+  ];
+  (state.sintesis||[]).forEach(h=>lines.push(`\n${h.tipo.toUpperCase()} | Confianza ${h.confianza}\n${h.hallazgo}\nImplicación: ${h.implicacion}\nFuentes: ${(h.fuentes||[]).map(n=>`[${n}]`).join(", ")}`));
+  lines.push("", "MATRIZ DE DECISIÓN");
+  (state.mde||[]).forEach(d=>lines.push(`\n${d.dimension}\nEvidencia: ${d.hallazgo_evidencia}\nCriterio: ${d.criterio_adoptado}\nFuentes: ${(d.fuentes||[]).map(n=>`[${n}]`).join(", ")}`));
+  lines.push("", "REFERENCIAS");
+  refs.forEach((r,i)=>lines.push(citationText(r,i)));
+  lines.push("", "Nota: análisis basado en títulos y resúmenes disponibles; verificar con los textos completos.");
+  const blob = new Blob([lines.join("\n")], {type:"text/plain;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "informe-evidencia-biblioteca-viva.txt";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 
 /* ============ UTILS ============ */

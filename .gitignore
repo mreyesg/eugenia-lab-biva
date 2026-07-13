@@ -4,11 +4,15 @@
 !.env.example
 web/.env.local
 web/.vercel/
+.claude/settings.local.json
 
 # Dependencias (se reinstalan con npm install)
 node_modules/
 web/node_modules/
 poster/src/node_modules/
+
+# Runtime local portatil (se descarga cuando hace falta)
+.tools/
 
 # Sistema operativo / editor
 .DS_Store

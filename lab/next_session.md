@@ -2,6 +2,13 @@
 
 Agenda y preparación para la próxima sesión de trabajo.
 
+## Arranque recomendado para 2026-07-14
+
+1. Abrir el Preview B+ `https://web-qkumuraw9-mreyesgs-projects.vercel.app`.
+2. Recorrer en teléfono el Modo investigador completo: búsqueda, aceptación de fuentes, MDE, síntesis e informe.
+3. Verificar descarga de texto e impresión/guardado como PDF.
+4. Corregir detalles encontrados y, con aprobación de Manuel, promover a producción.
+
 ---
 
 ## Próxima sesión
