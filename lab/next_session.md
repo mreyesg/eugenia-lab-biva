@@ -4,12 +4,14 @@ Agenda y preparación para la próxima sesión de trabajo.
 
 ## Arranque recomendado para 2026-07-14
 
-**El plan que estaba aquí ya se hizo el 2026-07-13** (segunda ronda del mismo día): el recorrido completo del Modo investigador (búsqueda, MDE, síntesis, informe, descarga e impresión) se validó con un navegador real contra el Preview y luego contra producción, se encontró y corrigió un bug real de truncamiento en "Componentes del trabajo", y **B+ ya está en producción** (`https://web-beta-hazel-49.vercel.app`). Detalle completo en `docs/handoff.md` y `docs/current-status.md`.
+**El plan que estaba aquí ya se hizo el 2026-07-13** (segunda y tercera ronda del mismo día): el recorrido completo del Modo investigador se validó con un navegador real, se corrigió un bug de truncamiento en "Componentes del trabajo", y se agregaron dos mejoras al motor de evidencia (señal de acceso cerrado con recomendación manual, y subida de PDF propio con extracción de referencia). **B+ con ambas mejoras ya está en producción** (`https://web-beta-hazel-49.vercel.app`). Detalle completo en `docs/handoff.md`, `docs/current-status.md` y `lab/decision_log.md` (entrada 2026-07-13).
 
-Lo único de ese plan que sigue pendiente, porque requiere a Manuel en persona:
+**El siguiente paso es la validación real pendiente desde hace días: dar la app a Kamila para que la use sola, sin guía, y ver qué logra.** Es la prueba que de verdad responde si la app aporta valor, no otra ronda de pruebas automatizadas por un agente.
 
-1. Recorrer producción en un **teléfono físico real** (lo hecho hasta ahora fue emulación de viewport móvil en Chromium headless, no un dispositivo real).
-2. Con ese visto bueno, generar el QR (ver "Pendientes de higiene" abajo).
+1. Compartir el link de producción con Kamila, sin acompañarla mientras la usa.
+2. Recoger qué logró, dónde se perdió, y qué le pareció confuso o útil, directamente de ella.
+3. Con eso en mano, decidir los próximos ajustes (probablemente más informativo que seguir adivinando mejoras desde afuera).
+4. Pendiente aparte, porque requiere a Manuel en persona: recorrer producción en un **teléfono físico real** (lo hecho hasta ahora fue emulación de viewport móvil en Chromium headless).
 
 ---
 

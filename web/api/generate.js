@@ -171,6 +171,17 @@ const SCHEMAS = {
         }
       }
     }
+  },
+  extraerReferencia: {
+    type: "object",
+    additionalProperties: false,
+    required: ["titulo", "autores", "anio", "resumen"],
+    properties: {
+      titulo: { type: "string" },
+      autores: { type: "string" },
+      anio: { type: "string" },
+      resumen: { type: "string" }
+    }
   }
 };
 
@@ -318,6 +329,16 @@ function buildReenfoque(p) {
   return { system, user, schemaKey: "reenfoque", unwrap: (r) => r, maxTokens: 2000 };
 }
 
+function buildExtraerReferencia(p) {
+  const texto = s(p.texto).slice(0, 8000);
+  const system =
+    "Eres un asistente bibliografico que identifica los datos de una referencia a partir del texto extraido de las primeras paginas de un PDF real que el investigador ya tiene en su poder (por ejemplo, un articulo de una base de datos paga a la que tiene acceso institucional). Trabajas UNICAMENTE con el texto provisto, nunca inventas ni completas con conocimiento externo. Si no puedes identificar con confianza el titulo, los autores o el anio, deja ese campo como cadena vacia en vez de adivinar. El resumen sintetiza en 2 a 4 oraciones, en espanol, el contenido real del articulo segun el texto provisto (si el texto incluye un abstract, basate en el; si no, sintetiza a partir de la introduccion disponible, sin inventar resultados que no esten en el texto). Respondes unicamente con datos estructurados.";
+  const user =
+    `Texto extraido de las primeras paginas de un PDF:\n\n${texto}\n\n` +
+    "Identifica titulo, autores (en el formato en que aparezcan, separados por coma), anio de publicacion, y redacta el resumen.";
+  return { system, user, schemaKey: "extraerReferencia", unwrap: (r) => r, maxTokens: 700 };
+}
+
 const BUILDERS = {
   friccion: buildFriccion,
   pregunta: buildPregunta,
@@ -326,7 +347,8 @@ const BUILDERS = {
   notas: buildNotas,
   mde: buildMde,
   sintesis: buildSintesis,
-  reenfoque: buildReenfoque
+  reenfoque: buildReenfoque,
+  extraerReferencia: buildExtraerReferencia
 };
 
 export default async function handler(req, res) {

@@ -12,7 +12,42 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 
 ## Última entrega
 
-**Fecha:** 2026-07-13 (segunda ronda del mismo día)
+**Fecha:** 2026-07-13 (tercera ronda del mismo día)
+**Quién:** sesión de Claude Code.
+
+### Qué se hizo
+
+- A pedido de Manuel, evaluación honesta de si la app aporta valor real (resumen: el núcleo de grounding real + honestidad sobre brechas sí es un aporte genuino, verificado en vivo; pero nunca se había probado con un usuario que no fuera Manuel). Se acordó que Kamila la probará sola, sin guía, como validación real, y que antes se fortalecería el motor de evidencia con dos mejoras concretas que Manuel propuso. Detalle completo de la decisión en `lab/decision_log.md` (2026-07-13).
+- **Señal de acceso cerrado:** `signalChips()` en `web/index.html` ahora muestra un chip "Acceso cerrado" cuando `oa === false`, y si además `fuerza === "alta"` agrega una nota explícita recomendando conseguir el artículo manualmente (Sistema de Bibliotecas UPR, préstamo interbibliotecario). Cambio puro de render; `search.js` ya traía esos datos, solo faltaba comunicarlos.
+- **Subir un PDF propio:** nueva tarea `extraerReferencia` en `generate.js` (9 tareas en total). El formulario de "Añadir referencia manual" en Bibliografía gana un input de PDF + botón "Leer datos del PDF": el texto se extrae 100% en el cliente con `pdf.js` (CDN, sin dependencia npm nueva) y solo el texto (nunca el PDF) se envía al backend, que devuelve título/autores/año/resumen estructurados para prellenar el formulario. Nada se guarda hasta que el investigador pulsa "Añadir referencia" explícitamente. Esto resuelve que antes una referencia añadida a mano no tenía resumen y por tanto contribuía débilmente a la MDE y la Síntesis (ambas dependen fuertemente de ese campo).
+- Se usó plan mode para diseñar la arquitectura de la subida de PDF antes de codificar (decisión: extracción client-side vs. server-side, justificada en el plan guardado en `C:\Users\manue\.claude\plans\jaunty-launching-torvalds.md`).
+- Ambas mejoras probadas de punta a punta con Playwright contra un Preview (con el bypass de automatización de Vercel, igual patrón que la ronda anterior, activado y desactivado en la misma sesión) y desplegadas a producción (deployment `dpl_46kCygQXv8ENKfmepS9KTXy34y5G`).
+
+### Verificación
+
+- `node --check web/api/generate.js` y `bash scripts/verify.sh`: OK, 0 fallos.
+- `node --check` sobre el JS embebido de `index.html` (extraído a un archivo temporal): OK.
+- Playwright contra Preview: el chip y la nota de acceso cerrado aparecieron correctamente en resultados de búsqueda real; un PDF de prueba con abstract real (generado con `pdfkit` solo para la prueba, no es dependencia del proyecto) se extrajo con título/autores/año/resumen correctos (729 caracteres); confirmado por `localStorage` que nada se guardó hasta pulsar "Añadir referencia" (0 antes, 1 después); formulario se limpió tras guardar; un PDF sin capa de texto disparó el aborto limpio esperado sin llamar a la API. 0 excepciones de JavaScript.
+- Verificado en producción con `curl` directo a `/api/generate` tarea `extraerReferencia`: respuesta limpia con los 4 campos.
+- El secreto de bypass de Vercel se desactivó al terminar y se confirmó por `curl` que ya no funciona.
+
+### Qué quedó roto o a medias
+
+- No se re-probó el recorrido completo de las 8 etapas tras este cambio (solo el tramo de Bibliografía + los endpoints tocados); las otras etapas no se modificaron, pero no hay una corrida de regresión completa de esta ronda específica.
+- No se probó la subida de PDF en un teléfono físico real (solo emulación). El input `type="file"` con `accept="application/pdf"` debería abrir el selector de archivos/cámara nativo en móvil, pero no se confirmó visualmente en un dispositivo real.
+- Sigue pendiente, sin cambios: probar producción en un teléfono físico real antes del QR (heredado de la ronda anterior).
+- El alcance de la extracción de PDF es deliberadamente solo metadatos bibliográficos (no variables experimentales cuantitativas); ver la decisión en `lab/decision_log.md` para el porqué.
+
+### Próximo paso recomendado
+
+1. Dar la app a Kamila para que la use sola, sin guía, y recoger qué logra y dónde se pierde — es la validación real pendiente.
+2. Manuel recorre producción en su teléfono físico (heredado, sigue sin hacerse).
+3. Continuar Fase C: tabla comparativa y borradores citados de justificación, métodos y discusión.
+4. Pendientes de siempre, sin cambios: límite de gasto mensual en Anthropic, fijar el alias oficial de Vercel para el QR, generar el QR, llenar `lab/roadmap.md`.
+
+---
+
+**Registro anterior: 2026-07-13 (segunda ronda del mismo día)**
 **Quién:** sesión de Claude Code.
 
 ### Qué se hizo

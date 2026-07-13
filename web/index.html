@@ -350,6 +350,13 @@ let loading = false;
 let searchState = { activo: null, resultados: {}, error: {} };
 // Borrador de la ficha de lectura en construcción (transitorio, no se guarda en localStorage).
 let notaDraft = { refIdx: 0, idea: "", conceptos: "", relacion: "" };
+// Borrador de una referencia manual, prellenado por extracción de PDF o escrito a mano
+// (transitorio, no se guarda en localStorage). Nada pasa a state.bibliografia hasta
+// que el investigador pulse "Añadir referencia" explícitamente.
+let refDraft = { titulo: "", autores: "", anio: "", resumen: "" };
+// Estado de la extracción de PDF en curso (transitorio).
+let pdfExtractState = { activo: false, error: "" };
+let pdfjsLoadPromise = null;
 
 function truncar(str, n){
   str = (str == null) ? "" : String(str);
@@ -880,12 +887,20 @@ function renderBibliografia(){
 
   <div class="card">
     <h3 style="font-size:15px;">Añadir una referencia manual</h3>
+    <p class="hint" style="margin:0 0 8px 0;">¿Ya tienes el PDF de un artículo (por ejemplo, de una base pagada a la que tienes acceso)? Súbelo y EugenIA intenta leer título, autores, año y resumen por ti.</p>
+    <input type="file" id="ref_pdf" accept="application/pdf" style="margin-bottom:8px;">
+    <button class="btn btn-ghost" id="btnExtraerPdf" type="button" style="width:100%;">${AI_ICON} Leer datos del PDF</button>
+    ${pdfExtractState.activo ? `<div class="loading" style="margin-top:8px;"><div class="spinner"></div> Leyendo el PDF…</div>` : ""}
+    ${pdfExtractState.error ? `<p class="hint" style="color:var(--danger);margin-top:8px;">${escapeHtml(pdfExtractState.error)}</p>` : ""}
+    <div class="divider" style="margin:14px 0;"></div>
     <label>Título</label>
-    <input type="text" id="ref_titulo" placeholder="Título del artículo o libro">
+    <input type="text" id="ref_titulo" value="${escapeAttr(refDraft.titulo)}" placeholder="Título del artículo o libro">
     <div class="field-row" style="margin-top:8px;">
-      <div><label>Autores</label><input type="text" id="ref_autores"></div>
-      <div><label>Año</label><input type="text" id="ref_anio"></div>
+      <div><label>Autores</label><input type="text" id="ref_autores" value="${escapeAttr(refDraft.autores)}"></div>
+      <div><label>Año</label><input type="text" id="ref_anio" value="${escapeAttr(refDraft.anio)}"></div>
     </div>
+    <label>Resumen (si lo tienes; ayuda a que la Matriz de Decisión y la Síntesis usen esta fuente igual que las encontradas por búsqueda)</label>
+    <textarea id="ref_resumen">${escapeHtml(refDraft.resumen)}</textarea>
     <label>¿Por qué podría servir a tu proyecto?</label>
     <textarea id="ref_justificacion" placeholder="Justificación breve"></textarea>
     <button class="btn btn-primary" id="btnAddRef" style="width:100%;margin-top:12px;">Añadir referencia</button>
@@ -1015,8 +1030,12 @@ function signalChips(r){
   else if(r.fuerza === "baja") chips.push(`<span class="chip" style="background:#ECEAE3;color:#6B6B60;">Ajuste tangencial</span>`);
   if(r.revista) chips.push(`<span class="chip" style="background:#ECEAE3;color:#5B5B50;">${escapeHtml(truncar(r.revista,28))}</span>`);
   if(r.oa) chips.push(`<span class="chip">Acceso abierto</span>`);
-  if(!chips.length) return "";
-  return `<div style="margin-top:8px;">${chips.join("")}</div>`;
+  else if(r.oa === false) chips.push(`<span class="chip" style="background:#ECEAE3;color:#6B6B60;">Acceso cerrado</span>`);
+  const chipsHtml = chips.length ? `<div style="margin-top:8px;">${chips.join("")}</div>` : "";
+  const avisoCerrado = (r.oa === false && r.fuerza === "alta")
+    ? `<p class="hint" style="margin:6px 0 0 0;">Este artículo parece muy relevante para tu proyecto pero es de acceso cerrado. Consíguelo manualmente (Sistema de Bibliotecas UPR, préstamo interbibliotecario) antes de decidir si lo aceptas.</p>`
+    : "";
+  return chipsHtml + avisoCerrado;
 }
 
 function renderPerspectivaBusqueda(m, i){
@@ -1123,11 +1142,24 @@ function attachBibliografiaHandlers(){
       titulo,
       autores: document.getElementById("ref_autores").value,
       anio: document.getElementById("ref_anio").value,
+      resumen: document.getElementById("ref_resumen").value,
       justificacion: document.getElementById("ref_justificacion").value,
       estado: "pendiente"
     });
+    refDraft = { titulo: "", autores: "", anio: "", resumen: "" };
+    pdfExtractState = { activo: false, error: "" };
+    const pdfInput = document.getElementById("ref_pdf");
+    if(pdfInput) pdfInput.value = "";
     saveState(); render();
   };
+  ["ref_titulo","ref_autores","ref_anio","ref_resumen"].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const draftKey = id.replace("ref_","");
+    el.oninput = () => { refDraft[draftKey] = el.value; };
+  });
+  const btnExtraerPdf = document.getElementById("btnExtraerPdf");
+  if(btnExtraerPdf) btnExtraerPdf.onclick = extraerReferenciaDePdf;
   document.querySelectorAll(".status-btn[data-i]").forEach(b=>{
     b.onclick = () => {
       const i = parseInt(b.dataset.i);
@@ -1147,6 +1179,96 @@ function attachBibliografiaHandlers(){
     };
   });
   attachReenfoqueHandlers();
+}
+
+/* ============ SUBIR PDF PROPIO: extraccion de referencia ============ */
+// Extraccion de texto 100% en el cliente (pdf.js via CDN, cargado solo cuando
+// hace falta). Solo el texto extraido (nunca el PDF) se envia al backend, a
+// la tarea "extraerReferencia" de /api/generate. Ver docs/decisions.md.
+function loadPdfJs(){
+  if(pdfjsLoadPromise) return pdfjsLoadPromise;
+  pdfjsLoadPromise = new Promise((resolve, reject) => {
+    if(window.pdfjsLib){ resolve(window.pdfjsLib); return; }
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    script.onload = () => {
+      try{
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        resolve(window.pdfjsLib);
+      }catch(e){ reject(e); }
+    };
+    script.onerror = () => reject(new Error("No se pudo cargar el lector de PDF."));
+    document.head.appendChild(script);
+  });
+  return pdfjsLoadPromise;
+}
+
+async function extraerTextoPdf(file){
+  const pdfjsLib = await loadPdfJs();
+  const buffer = await file.arrayBuffer();
+  const doc = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const maxPaginas = Math.min(doc.numPages, 3);
+  let texto = "";
+  for(let i = 1; i <= maxPaginas; i++){
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    texto += content.items.map(it => it.str).join(" ") + "\n";
+  }
+  return texto.trim();
+}
+
+async function extraerReferenciaDePdf(){
+  const input = document.getElementById("ref_pdf");
+  const file = input && input.files && input.files[0];
+  if(!file){ alert("Elige un archivo PDF primero."); return; }
+  if(file.size > 20 * 1024 * 1024){
+    pdfExtractState = { activo: false, error: "El archivo es muy grande (máximo 20MB)." };
+    render();
+    return;
+  }
+  pdfExtractState = { activo: true, error: "" };
+  render();
+
+  let texto;
+  try{
+    texto = await extraerTextoPdf(file);
+  }catch(e){
+    console.error("Error leyendo el PDF:", e);
+    pdfExtractState = { activo: false, error: "No se pudo leer este PDF (puede estar protegido con contraseña o dañado). Añade la referencia a mano." };
+    render();
+    return;
+  }
+  if(texto.length < 40){
+    pdfExtractState = { activo: false, error: "Este PDF parece ser una imagen escaneada; no se puede leer el texto. Añade la referencia a mano." };
+    render();
+    return;
+  }
+
+  try{
+    const resp = await fetch("/api/generate", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ task: "extraerReferencia", payload: { texto: texto.slice(0, 6000) } })
+    });
+    if(!resp.ok){
+      let msg = "No se pudieron extraer los datos del PDF.";
+      try{ const e = await resp.json(); if(e && e.error) msg = e.error; }catch(_){}
+      throw new Error(msg);
+    }
+    const data = await resp.json();
+    const result = data.result || {};
+    refDraft = {
+      titulo: result.titulo || "",
+      autores: result.autores || "",
+      anio: result.anio || "",
+      resumen: result.resumen || ""
+    };
+    pdfExtractState = { activo: false, error: "" };
+  }catch(e){
+    console.error("Error extrayendo datos del PDF:", e);
+    pdfExtractState = { activo: false, error: e.message || "No se pudieron extraer los datos del PDF. Inténtalo de nuevo." };
+  }
+  render();
 }
 
 /* ============ STEP 6: MATRIZ DE DECISIÓN ============ */
