@@ -33,3 +33,25 @@ Mismo formato que `lab/decision_log.md`, por consistencia:
 **Razón:** Inicializar git es aditivo y reversible en sí mismo, pero `web/.env.local` contiene una `ANTHROPIC_API_KEY` real en texto plano y `web/node_modules/` es grande; un primer commit mal armado (sin `.gitignore` correcto) filtraría el secreto o metería binarios pesados al historial. Es una decisión de infraestructura que vale más confirmarla explícitamente con Manuel antes de tomarla, no algo que se dedujera de las instrucciones de esta tarea.
 
 **Impacto:** La continuidad entre sesiones depende por ahora enteramente de `docs/` y `lab/`, no de historial de git. Si se decide inicializar git en una sesión futura, el `.gitignore` mínimo ya quedó especificado en `AGENTS.md`.
+
+**Superado por la entrada del 2026-07-12 abajo:** Manuel pidió explícitamente inicializar git y subirlo a GitHub. Esta entrada se conserva como registro histórico de por qué no se hizo unilateralmente en su momento.
+
+## [2026-07-12] — Inicializar git y publicar el repo en GitHub (privado)
+
+**Contexto:** Manuel pidió explícitamente crear el repo en GitHub, con la condición de no exponer `ANTHROPIC_API_KEY`. Ver la entrada del 2026-07-09 arriba sobre por qué no se había hecho antes.
+
+**Decisión:** `git init` en la raíz, `.gitignore` (raíz + `web/.gitignore` ajustado) excluyendo `web/.env.local`, `web/.vercel/` y todo `node_modules/`, primer commit de 35 archivos, y `gh repo create mreyesg/eugenia-lab-biva --private`. Antes del commit se verificó con `git check-ignore -v` sobre cada ruta sensible (no solo se asumió que el patrón funcionaba) y con `grep -rl "sk-ant-"` sobre todo el árbol para descartar claves hardcodeadas fuera de `.env.local`.
+
+**Razón:** Ya con confirmación explícita del dueño del proyecto, el riesgo que motivaba la cautela anterior (filtrar el secreto en el primer commit) se resuelve verificando antes de comprometer, no evitando el commit indefinidamente.
+
+**Impacto:** El repo ahora sí tiene historial de git real; `AGENTS.md` y `docs/current-status.md` deben actualizarse para reflejar que la sección "no hay git" ya no aplica (revisar si quedó desactualizada en una lectura futura). `web/.gitignore` quedó con una regla nueva (`!.env.example`) porque la regla `.env*` original bloqueaba también a la plantilla sin secretos.
+
+## [2026-07-12] — Rotar secretos sin que el valor pase por el chat/contexto del agente
+
+**Contexto:** `ANTHROPIC_API_KEY` ya había quedado expuesta una vez en el historial de una sesión de Code (el problema que se está corrigiendo). Rotarla pidiéndole a Manuel que pegara la clave nueva en el chat habría repetido exactamente el mismo incidente.
+
+**Decisión:** Manuel generó la clave nueva en console.anthropic.com y la escribió directamente en `web/.env.local` con su propio editor, sin pasarla por el chat. El agente nunca corrió `Read` sobre ese archivo durante la rotación; en vez de eso, usó `grep '^ANTHROPIC_API_KEY=' .env.local | sed ... | npx vercel env add ...` para subir el valor a Vercel por un pipe de shell, de modo que el valor nunca aparece en la salida que el agente recibe de vuelta.
+
+**Razón:** La única forma de que un secreto no quede en el historial de una sesión de agente es que el agente nunca lo reciba como texto en su contexto. Pedir la acción (generar clave, editar archivo) sin pedir el valor logra eso sin sacrificar que el agente orqueste el resto (borrar la clave vieja de Vercel, subir la nueva, verificar, redesplegar).
+
+**Impacto:** Este es el patrón a seguir la próxima vez que haga falta rotar o introducir un secreto nuevo en este proyecto: la escritura del valor la hace el humano en su editor, el agente solo mueve el valor entre archivo y destino final por pipes, nunca lo imprime ni lo lee con una herramienta que lo devuelva como texto visible.

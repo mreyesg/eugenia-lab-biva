@@ -1,12 +1,12 @@
 # Current status (snapshot técnico para agentes)
 
-**Última actualización:** 2026-07-09.
+**Última actualización:** 2026-07-12.
 
 Este archivo es el snapshot *técnico/operativo* para que un agente nuevo sepa en qué estado está el código sin leer el chat. Para el snapshot *de investigación/estudiantes* (Kamila, fases del estudio de Plectranthus), ver `lab/project_state.md`, que se mantiene por separado y no se duplicó aquí.
 
 ## Infraestructura
 
-- **Control de versiones:** no existe. Este directorio no es un repositorio git (confirmado con `git status`, falla). Ver `AGENTS.md` sección "Estado del control de versiones".
+- **Control de versiones:** existe desde 2026-07-12. Repo git inicializado en la raíz, primer commit hecho, y subido a GitHub como `mreyesg/eugenia-lab-biva` (privado). `.gitignore` (raíz y `web/.gitignore`) excluye `node_modules/`, `web/.env.local`, `web/.vercel/`; verificado con `git check-ignore` antes del primer commit que nada sensible quedó staged.
 - **Hosting:** Vercel, proyecto `web` (org `mreyesgs-projects`, `projectId: prj_NSR0I03nKcM0kyjKlg1bw4UBBM5P`).
 - **URL de producción:** `https://web-beta-hazel-49.vercel.app`. Confirmado con `vercel alias ls` que hay 3 alias apuntando al mismo deployment actual (13h de antigüedad al momento de revisar):
   - `web-beta-hazel-49.vercel.app` (la que usan `lab/next_session.md` y el README)
@@ -15,15 +15,12 @@ Este archivo es el snapshot *técnico/operativo* para que un agente nuevo sepa e
 
   Los tres sirven lo mismo hoy. No hay una alias "fija" elegida deliberadamente para el QR del póster; si un despliegue futuro no incluye `--prod` o cambia de nombre, no está garantizado que seguirán apuntando al mismo sitio. Pendiente: decidir uno y, si se quiere estabilidad, fijarlo con `vercel alias set`.
 
-- **Variables de entorno en Vercel** (`npx vercel env ls`, verificado 2026-07-09):
+- **Variables de entorno en Vercel** (`npx vercel env ls`, verificado 2026-07-12): `ANTHROPIC_API_KEY` presente y separada en los 3 entornos (`Production`, `Preview`, `Development`), cada una agregada independientemente (ya no una sola entrada compartiendo Production+Preview como antes).
 
-  | Variable | Entornos |
-  |---|---|
-  | `ANTHROPIC_API_KEY` | Production, Preview (desde hace ~20h) **y Development (agregada hoy, ~7h)** |
-
-  Antes de esta sesión, `ANTHROPIC_API_KEY` NO estaba disponible en el entorno `Development`, que es el que usa `vercel dev` localmente. Esa era la causa raíz de que "el servidor local diera problemas leyendo la clave" (mencionado en `lab/next_session.md`, ahora corregido ahí también). Se agregó con `npx vercel env add ANTHROPIC_API_KEY development`, reutilizando el valor que ya estaba en `web/.env.local`.
-
-  **Confirmado de punta a punta en esta sesión:** `npx vercel env pull .env.local` trajo la clave al archivo local, se reinició `vercel dev`, y un `POST /api/generate` real con `task: "friccion"` devolvió las 4 opciones esperadas (HTTP 200). El flujo local ya funciona igual que producción.
+  Historial relevante:
+  - 2026-07-09: se descubrió que `ANTHROPIC_API_KEY` no estaba en el entorno `Development`, causa raíz de que `vercel dev` local fallara. Se agregó y se confirmó de punta a punta (`POST /api/generate` → HTTP 200).
+  - **2026-07-12: se rotó la clave completa.** La clave vieja (la que había quedado expuesta en el historial de una sesión de Code, pendiente documentado desde antes de este arnés) se generó de nuevo en console.anthropic.com por Manuel directamente (nunca pasó por el chat), se reemplazó en `web/.env.local`, se removió de los 3 entornos en Vercel (`vercel env rm`) y se volvió a subir la nueva (`vercel env add`, leyendo el valor de `.env.local` vía pipe para que nunca apareciera en la salida de ninguna herramienta). Producción se redesplegó (`vercel --prod`) para que sirviera con la clave nueva de inmediato. Confirmado con `POST /api/generate` local (HTTP 200) y con `bash scripts/verify.sh --network` contra producción (0 fallos).
+  - **Pendiente, requiere acción manual de Manuel:** revocar/borrar la clave vieja en console.anthropic.com. Ningún comando de Vercel puede invalidar una clave de Anthropic, solo dejar de usarla.
 
 ## Funcionalidad de la app (`web/`)
 
@@ -40,14 +37,10 @@ Confirmado por inspección de código, no solo por lo que dice `lab/project_stat
 - No se corrió una verificación visual del póster en esta sesión (no se tocó `build_poster.js`).
 - No se abrió `web/index.html` en un navegador real en esta sesión.
 
-## Pendientes activos (heredados de sesiones anteriores, no introducidos por este arnés)
+## Pendientes activos
 
-- Rotar `ANTHROPIC_API_KEY` (quedó expuesta en el historial de una sesión de Code).
+- **Revocar la clave vieja de Anthropic** en console.anthropic.com (ver arriba, la rotación del lado de Vercel/código ya está hecha, falta este último paso manual).
 - Definir límite de gasto mensual en la consola de Anthropic.
 - Generar el QR hacia la URL de producción elegida.
+- Decidir cuál de los 3 alias de Vercel es "el" link oficial para el QR (`web-beta-hazel-49.vercel.app` es el que se usa hoy en la práctica, pero no se fijó explícitamente con `vercel alias set`).
 - Llenar `lab/roadmap.md` (sigue casi vacío).
-
-## Pendientes introducidos/descubiertos en esta sesión
-
-- Decidir si se inicializa git y con qué `.gitignore`.
-- Decidir cuál de los 3 alias de Vercel es "el" link oficial para el QR.

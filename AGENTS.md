@@ -4,15 +4,13 @@ Este archivo es lo primero que debe leer cualquier agente (Claude Code u otro) q
 
 Para contexto de negocio/investigación (quién es quién, qué es EugenIA Lab, decisiones de producto de la app) lee primero `CLAUDE.md` en la raíz. Este archivo (`AGENTS.md`) es el complemento operativo: cómo verificar, dónde está cada cosa, y cómo cerrar una sesión dejando estado utilizable por el siguiente agente.
 
-## Estado del control de versiones (importante)
+## Estado del control de versiones
 
-**Este directorio NO es un repositorio git** (`git status` falla con "not a git repository", verificado 2026-07-09). No hay `.git` en ninguna carpeta del árbol. Esto significa:
+Desde 2026-07-12 este directorio **sí es un repositorio git**, con el primer commit hecho y subido a GitHub como `mreyesg/eugenia-lab-biva` (privado). Antes de esa fecha no había `.git`; ver `docs/decisions.md` para el porqué y el detalle de cómo se hizo sin exponer secretos.
 
-- No hay forma de ver un diff de lo que cambió en una sesión salvo comparando a mano.
-- No hay branches, no hay commits, no hay forma de revertir con `git checkout`.
-- La "continuidad entre sesiones" depende enteramente de estos documentos (`docs/`, `lab/`), no de historial de git.
-
-Si en algún momento se decide inicializar git, hacerlo con un `.gitignore` que excluya como mínimo `web/node_modules/`, `web/.env.local`, `web/.vercel/`, antes del primer commit, porque `web/.env.local` contiene una `ANTHROPIC_API_KEY` real en texto plano. No se ha hecho todavía porque no fue pedido explícitamente y es una decisión que vale la pena confirmar con Manuel primero.
+- El `.gitignore` de la raíz (y `web/.gitignore`, más específico) excluyen `node_modules/`, `web/.env.local` y `web/.vercel/`. **Antes de cualquier commit que toque esas rutas, confirma con `git check-ignore -v <ruta>` que sigue excluida**, no lo asumas.
+- `web/.env.local` contiene una `ANTHROPIC_API_KEY` real en texto plano. Nunca la leas con `Read` ni la imprimas en un comando si se puede evitar: usa pipes de shell (`grep ... | vercel env add ...`) para mover el valor sin que pase por la salida que ves. Ver el patrón completo en `docs/decisions.md`, entrada "Rotar secretos sin que el valor pase por el chat/contexto del agente".
+- `origin` apunta por SSH a GitHub. No hagas `git push --force` ni reescribas historial sin confirmar con Manuel primero.
 
 ## Qué es este repo, en una frase por pieza
 
@@ -81,6 +79,6 @@ Antes de terminar cualquier sesión de trabajo en este repo:
 
 ## Riesgos conocidos activos (no resolver sin confirmar con Manuel)
 
-- `ANTHROPIC_API_KEY` quedó expuesta en texto plano en el historial de una sesión de Code anterior. Pendiente de rotar. No es un secreto nuevo introducido por este arnés, ya estaba documentado en `lab/next_session.md` y en la memoria de Claude.
+- `ANTHROPIC_API_KEY` se rotó el 2026-07-12 (clave nueva en los 3 entornos de Vercel, producción redesplegada, confirmado funcionando). **Falta un último paso manual:** revocar la clave vieja en console.anthropic.com, eso no se puede hacer desde aquí. Ver `docs/current-status.md`.
 - No hay límite de gasto mensual configurado en la consola de Anthropic para una app pública vía QR.
 - El QR final todavía no existe (ni el link "canónico": hay 3 alias de Vercel apuntando al mismo deployment, ver `docs/current-status.md`).
