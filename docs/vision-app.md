@@ -70,3 +70,29 @@ Orden pensado para que, si el tiempo aprieta antes del congreso, lo que sí est�
 
 1. ¿La taxonomía de componentes de arriba es la correcta para tu audiencia, o la ajustamos? (por ejemplo, si quieres separar Marco conceptual, o fundir Comparación con Discusión).
 2. ¿Las dimensiones de la MDE deben ser siempre generadas por IA según el campo, o quieres un conjunto fijo pensado para química como opción por defecto?
+
+## Extensión estratégica: de herramienta de evidencia a compañero de defendibilidad (dirección aprobada por Manuel, 2026-07-13)
+
+Esta es la dirección que, según Manuel, sostiene el proyecto en el tiempo y lo diferencia de las herramientas de descubrimiento existentes. Queda registrada como norte estratégico; todavía no está construida más allá de sus semillas.
+
+### La diferenciación
+
+Herramientas como Elicit, Consensus o Scite son de descubrimiento y extracción: encuentran papers y sacan datos. Ese terreno se comoditiza rápido. Biblioteca Viva apunta a otra categoría: un compañero de integridad y defendibilidad de la investigación, que mantiene honesta tu pregunta frente a dos espejos que cambian con el tiempo, la literatura que se acumula y tus propios resultados. Es trabajo de juicio, longitudinal, con el humano en el centro, y por eso más difícil de comoditizar. Coincide con el nombre "Biblioteca Viva": algo a lo que se regresa, no un flujo que se corre una vez.
+
+El motor bibliométrico sigue siendo el corazón, pero la funcionalidad se extiende más allá de encontrar fuentes: la app debe ayudarte a detectar posibles huecos teóricos, metodológicos, éticos, de novedad y de reproducibilidad que puedan debilitar el trabajo y dificultar una publicación. Fin último: divulgar un trabajo científico sólido y defendible.
+
+### Qué ya está sembrado, y qué es genuinamente nuevo
+
+- Sembrado: la **síntesis** (consenso, contradicción, brecha) es el embrión de "validez a la luz de la literatura", pero hoy solo mira el corpus y no dispara alarmas de defendibilidad. El **reenfoque** ya revisa la pregunta a la luz de los artículos aceptados, pero es de un solo tiro y solo desde la literatura, nunca desde los datos propios.
+- Nuevo, aún no construido:
+  1. **Los resultados propios del investigador como insumo de primera clase.** Hoy la app solo ingiere literatura (búsqueda y PDFs propios). Falta un lugar donde el investigador declare qué está encontrando, para examinar la pregunta contra sus datos y no solo contra los de otros.
+  2. **Una auditoría de defendibilidad por dimensiones** (teórica, metodológica, ética, de novedad, de reproducibilidad, de alineación pregunta-evidencia), donde cada señal se enmarca como algo que un revisor podría atacar y por qué podría dificultar la publicación.
+  3. **El bucle longitudinal:** que la pregunta pueda reexaminarse una y otra vez a medida que crecen el corpus y los resultados, no solo al inicio.
+
+### El principio que no se puede violar en esta extensión
+
+Una auditoría de huecos es justo donde un modelo de lenguaje puede lucirse o perder toda su credibilidad, porque es fácil generar críticas plausibles pero inventadas. La misma disciplina que hoy gobierna las citas debe gobernar la auditoría: cada hueco señalado se ancla a una fuente concreta, a una ausencia declarada en el corpus, o a un elemento específico del diseño o los resultados del investigador, nunca a una intuición del modelo. Las señales éticas se plantean como preguntas a considerar, no como veredictos. Si eso se respeta, es un aporte real; si no, es ruido que desprestigia el resto de la app.
+
+### Estado
+
+Dirección registrada, no construida. Primer paso concreto cuando se decida abordarla: el insumo de "tus propios resultados" y una tarea de auditoría de defendibilidad anclada a evidencia (reutilizando el patrón de `generate.js` y el principio de "la IA propone, el investigador decide"). Ver `lab/roadmap.md`.

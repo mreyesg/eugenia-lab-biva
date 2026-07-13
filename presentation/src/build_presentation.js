@@ -521,7 +521,23 @@ contentSlide({
 // ============================================================================
 // SECCIÓN 7
 // ============================================================================
-sectionDivider("07", "Hacia una publicación", "El trabajo futuro, y lo que este proceso deja como aporte generalizable.");
+sectionDivider("07", "Hacia una publicación", "La diferenciación que sostiene el proyecto, el trabajo futuro y lo que deja como aporte generalizable.");
+
+// SLIDE: Posicionamiento / diferenciación
+contentSlide({
+  kicker: "Diferenciación",
+  title: "No es un buscador de papers",
+  intro: "Las herramientas de descubrimiento (Elicit y similares) ayudan a encontrar y extraer literatura. Biblioteca Viva apunta a algo distinto y más duradero: mantener honesta tu pregunta de investigación a lo largo del tiempo.",
+  introH: 1.0,
+  bullets: [
+    "Reexaminar la validez de la pregunta a medida que se acumula la literatura y a medida que llegan tus propios resultados.",
+    "Más allá de encontrar fuentes: señalar posibles huecos teóricos, metodológicos y éticos que dificulten publicar. Fin último, un trabajo sólido y defendible.",
+    "Cada señal anclada a evidencia real o a una ausencia declarada, nunca inventada; lo ético como preguntas a considerar, no veredictos."
+  ],
+  bulletsSize: 15.5,
+  bulletsH: 2.1,
+  pend: "El insumo de \"tus propios resultados\" y la auditoría de defendibilidad por dimensiones son la dirección en construcción; hoy existen sus semillas en la síntesis y el reenfoque."
+});
 
 // SLIDE 22: Trabajo futuro
 contentSlide({
