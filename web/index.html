@@ -306,8 +306,9 @@ const STAGES = [
   {key:"idea", label:"Idea inicial", short:"Idea"},
   {key:"friccion", label:"Fricción conceptual", short:"Fricción"},
   {key:"pregunta", label:"Pregunta y objetivos", short:"Pregunta"},
-  {key:"mapa", label:"Mapa bibliográfico", short:"Mapa"},
+  {key:"mapa", label:"Componentes del trabajo", short:"Componentes"},
   {key:"bibliografia", label:"Bibliografía viva", short:"Biblio"},
+  {key:"mde", label:"Matriz de Decisión", short:"Matriz"},
   {key:"notas", label:"Notas de lectura", short:"Notas"},
   {key:"divulgacion", label:"Divulgación", short:"Divulgar"},
   {key:"reflexion", label:"Reflexión", short:"Reflexión"}
@@ -343,10 +344,20 @@ function defaultProject(){
     pregunta: {problema:"", pregunta_principal:"", preguntas_secundarias:["",""], objetivo_general:"", objetivos_especificos:["",""], delimitaciones:""},
     mapa: [],
     bibliografia: [],
+    mde: [],
     notas: [],
     divulgacion: {formato:"", outline:null},
     reflexion: {cambio:"", referencia:"", dificultad:"", usoIA:""}
   };
+}
+
+// Rellena claves que falten en proyectos guardados antes de que existieran
+// (por ejemplo, "mde" se agregó después de que algunos usuarios ya tenían progreso).
+function migrateState(){
+  const def = defaultProject();
+  for(const k in def){
+    if(state[k] === undefined) state[k] = def[k];
+  }
 }
 
 function loadState(){
@@ -356,6 +367,7 @@ function loadState(){
   }catch(e){
     state = defaultProject();
   }
+  migrateState();
   render();
 }
 
@@ -513,11 +525,11 @@ function renderIntro(){
   </div>
   <main>
     <div class="intro-hero">
-      <h2>De una idea a una investigación organizada</h2>
-      <p>Esta app te acompaña por las ocho etapas que usamos en EugenIA Lab para convertir una idea en un proyecto con pregunta clara, bibliografía justificada y un producto de divulgación.</p>
+      <h2>Fortalece tu investigación con la mejor evidencia</h2>
+      <p>Una herramienta para investigadores y estudiantes graduados: encuentra las fuentes que mejor sostienen cada parte de tu trabajo, y tradúcelas en criterios de decisión con la Matriz de Decisión. Sirve igual para empezar un proyecto o para reforzar uno en curso.</p>
     </div>
     <div class="card tint">
-      <h3>Las ocho etapas</h3>
+      <h3>El recorrido</h3>
       <ul class="plain">
         ${STAGES.map((s,i)=>`<li><b>${i+1}. ${s.label}</b></li>`).join("")}
       </ul>
@@ -545,6 +557,7 @@ function renderStep(i){
     case "pregunta": return renderPregunta();
     case "mapa": return renderMapa();
     case "bibliografia": return renderBibliografia();
+    case "mde": return renderMDE();
     case "notas": return renderNotas();
     case "divulgacion": return renderDivulgacion();
     case "reflexion": return renderReflexion();
@@ -925,7 +938,90 @@ function attachBibliografiaHandlers(){
   });
 }
 
-/* ============ STEP 6: NOTAS DE LECTURA ============ */
+/* ============ STEP 6: MATRIZ DE DECISIÓN ============ */
+// Traduce la evidencia curada (referencias aceptadas) en criterios de decisión.
+// Las dimensiones las genera la IA según el campo del proyecto, para servir a
+// cualquier disciplina. Cada fila enlaza a las fuentes reales que la sostienen;
+// nunca se inventan datos ni citas (ver docs/vision-app.md).
+function refUrl(r){
+  if(r && r.url) return r.url;
+  if(r && r.doi) return "https://doi.org/" + r.doi;
+  return "";
+}
+
+function renderMDE(){
+  const aceptadas = state.bibliografia.filter(r=>r.estado==="aceptada");
+  const mde = state.mde || [];
+  if(aceptadas.length === 0){
+    return `<div class="card tint"><p style="margin:0;">La Matriz de Decisión se construye a partir de tus referencias aceptadas. Vuelve a <b>Bibliografía viva</b> y acepta al menos unas cuantas fuentes para poder generarla.</p></div>`;
+  }
+  const intro = `
+    <div class="card">
+      <p style="margin:0 0 10px 0;">La <b>Matriz de Decisión</b> convierte la evidencia que ya curaste en criterios operativos concretos para tu investigación. EugenIA propone las dimensiones de decisión según tu campo, y sostiene cada una con tus fuentes reales.</p>
+      <p class="hint" style="margin:0 0 12px 0;">Basada en ${aceptadas.length} referencia(s) aceptada(s). Revisa y ajusta cada criterio con tu propio juicio antes de adoptarlo.</p>
+      <button class="btn btn-accent" id="btnGenerarMDE" style="width:100%;">${mde.length ? "Regenerar matriz" : "Generar Matriz de Decisión"}</button>
+    </div>`;
+  if(mde.length === 0){
+    return intro + `<div class="empty">Aún no has generado la matriz.</div>`;
+  }
+  const filas = mde.map(d=>{
+    const chips = (Array.isArray(d.fuentes)?d.fuentes:[])
+      .map(n=>aceptadas[n-1])
+      .filter(Boolean)
+      .map(r=>{
+        const u = refUrl(r);
+        const etiqueta = escapeHtml(truncar(r.titulo, 60));
+        return u
+          ? `<a href="${escapeAttr(u)}" target="_blank" rel="noopener" style="display:inline-block;font-size:12px;background:var(--moss-light);color:var(--forest);border-radius:10px;padding:3px 9px;margin:3px 4px 0 0;text-decoration:none;">${etiqueta}</a>`
+          : `<span style="display:inline-block;font-size:12px;background:var(--moss-light);color:var(--forest);border-radius:10px;padding:3px 9px;margin:3px 4px 0 0;">${etiqueta}</span>`;
+      }).join("");
+    return `
+      <div class="card tint">
+        <h3 style="font-size:15px;margin:0 0 8px 0;">${escapeHtml(d.dimension)}</h3>
+        <p style="font-size:13.5px;margin:0 0 8px 0;"><b>Evidencia curada:</b> ${escapeHtml(d.hallazgo_evidencia)}</p>
+        <p style="font-size:13.5px;margin:0 0 8px 0;"><b>Criterio adoptado:</b> ${escapeHtml(d.criterio_adoptado)}</p>
+        <div style="border-top:1px solid #E4DFCF;padding-top:8px;">
+          <span class="hint" style="display:block;margin-bottom:2px;">Sostenido por:</span>
+          ${chips || `<span class="hint">Sin fuentes específicas asignadas.</span>`}
+        </div>
+      </div>`;
+  }).join("");
+  return `
+    <div class="ai-badge">${AI_ICON} Matriz generada por EugenIA</div>
+    ${filas}
+    ${intro}`;
+}
+
+function attachMdeHandlers(){
+  const btn = document.getElementById("btnGenerarMDE");
+  if(btn) btn.onclick = generarMDE;
+}
+
+async function generarMDE(){
+  const aceptadas = state.bibliografia.filter(r=>r.estado==="aceptada");
+  if(aceptadas.length === 0) return;
+  const referencias = aceptadas.map(r=>({
+    titulo: r.titulo,
+    autores: r.autores,
+    anio: r.anio,
+    resumen: r.resumen || "",
+    justificacion: r.justificacion || "",
+    doi: r.doi || "",
+    url: r.url || ""
+  }));
+  const result = await callAgent("mde", {
+    idea: state.idea,
+    pregunta: state.pregunta,
+    referencias
+  });
+  if(result && Array.isArray(result)){
+    state.mde = result;
+    saveState();
+  }
+  render();
+}
+
+/* ============ STEP 7: NOTAS DE LECTURA ============ */
 // Nota de diseño (ver CLAUDE.md y docs/decisions.md 2026-07-12): este paso sigue
 // siendo manual por principio (la curación crítica no se delega a un atajo
 // automático). La IA aquí es una SUGERENCIA opcional que el estudiante debe
@@ -1097,6 +1193,7 @@ function attachStepHandlers(i){
     pregunta: attachPreguntaHandlers,
     mapa: attachMapaHandlers,
     bibliografia: attachBibliografiaHandlers,
+    mde: attachMdeHandlers,
     notas: attachNotasHandlers,
     divulgacion: attachDivulgacionHandlers,
     reflexion: attachReflexionHandlers
@@ -1133,6 +1230,9 @@ function showSummary(){
         <div class="divider"></div>
         <h3 style="font-size:15px;">Referencias</h3>
         <p>${p.bibliografia.filter(r=>r.estado==='aceptada').length} aceptadas de ${p.bibliografia.length} añadidas</p>
+        <div class="divider"></div>
+        <h3 style="font-size:15px;">Matriz de Decisión</h3>
+        <p>${(p.mde||[]).length} dimensiones de decisión fundamentadas en tu evidencia</p>
         <div class="divider"></div>
         <h3 style="font-size:15px;">Formato de divulgación</h3>
         <p>${escapeHtml(p.divulgacion.formato) || "(sin elegir)"}</p>

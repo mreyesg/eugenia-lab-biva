@@ -9,7 +9,7 @@
 // Para máxima calidad, pon CLAUDE_MODEL=claude-opus-4-8 en Vercel.
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 
-const MAX_PAYLOAD_CHARS = 20000;
+const MAX_PAYLOAD_CHARS = 40000;
 
 function s(v) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
@@ -104,6 +104,28 @@ const SCHEMAS = {
       conceptos_clave: { type: "array", items: { type: "string" } },
       relacion_investigacion: { type: "string" }
     }
+  },
+  mde: {
+    type: "object",
+    additionalProperties: false,
+    required: ["dimensiones"],
+    properties: {
+      dimensiones: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["dimension", "hallazgo_evidencia", "criterio_adoptado", "fuentes"],
+          properties: {
+            dimension: { type: "string" },
+            hallazgo_evidencia: { type: "string" },
+            criterio_adoptado: { type: "string" },
+            // Numeros (1-based) de las referencias aceptadas que sostienen esta fila.
+            fuentes: { type: "array", items: { type: "integer" } }
+          }
+        }
+      }
+    }
   }
 };
 
@@ -142,7 +164,9 @@ function buildMapa(p) {
     `Tema: ${s(idea.tema)}\n` +
     `Problema: ${s(preg.problema)}\n` +
     `Pregunta principal: ${s(preg.pregunta_principal)}\n\n` +
-    "Genera exactamente 5 perspectivas, una por cada una de: Conceptual, Contextual, Empirica, Metodologica, Critica. En cada perspectiva, que_necesito es una frase especifica de 1 a 2 oraciones sobre que debe cubrir esa perspectiva PARA ESTE TEMA en particular, no una definicion generica.";
+    "Genera exactamente 4 componentes de un trabajo publicable, con estos nombres exactos en este orden: " +
+    "'Justificacion y brecha', 'Metodos', 'Comparacion de resultados', 'Discusion y contraste'. " +
+    "Para cada componente, que_necesito es una frase especifica de 1 a 2 oraciones sobre que evidencia bibliografica necesita esa seccion PARA ESTE TEMA en particular (por ejemplo, en Metodos: que enfoques metodologicos conviene revisar para elegir y defender el propio), no una definicion generica.";
   return { system, user, schemaKey: "mapa", unwrap: (r) => r.perspectivas };
 }
 
@@ -179,12 +203,38 @@ function buildNotas(p) {
   return { system, user, schemaKey: "notas", unwrap: (r) => r };
 }
 
+function buildMde(p) {
+  const idea = p.idea || {};
+  const preg = p.pregunta || {};
+  const refs = Array.isArray(p.referencias) ? p.referencias : [];
+  const lista = refs
+    .map((r, i) => {
+      const n = i + 1;
+      return (
+        `[${n}] ${s(r.titulo)} (${s(r.autores)}, ${s(r.anio)})\n` +
+        `    Resumen: ${s(r.resumen)}\n` +
+        `    Aporte identificado: ${s(r.justificacion)}`
+      );
+    })
+    .join("\n");
+  const system =
+    "Eres un asistente de investigacion que construye una Matriz de Decision: traduce evidencia bibliografica ya curada en criterios operativos concretos para tomar decisiones dentro de una investigacion. Te adaptas a cualquier disciplina: las dimensiones de decision dependen del campo del trabajo (por ejemplo, en quimica podrian ser solvente, metodo de extraccion o rangos de un parametro; en otros campos seran otras). Usas unicamente la evidencia de las fuentes provistas, nunca inventas datos ni citas. Respondes unicamente con datos estructurados.";
+  const user =
+    `Tema del proyecto: ${s(idea.tema)}\n` +
+    `Pregunta principal: ${s(preg.pregunta_principal)}\n` +
+    `Objetivo general: ${s(preg.objetivo_general)}\n\n` +
+    `Referencias aceptadas (numeradas):\n${lista}\n\n` +
+    "A partir SOLO de estas referencias, identifica entre 3 y 6 dimensiones de decision relevantes para ESTE trabajo en particular (las que el investigador debe resolver para avanzar). Para cada dimension: 'hallazgo_evidencia' resume que dice la evidencia curada al respecto; 'criterio_adoptado' es una decision operativa concreta y accionable que se recomienda tomar, coherente con esa evidencia; 'fuentes' es la lista de numeros de las referencias que sostienen esa fila (solo numeros que aparezcan en la lista de arriba). No inventes dimensiones que las fuentes no puedan sostener. Todo en espanol, especifico a este proyecto.";
+  return { system, user, schemaKey: "mde", unwrap: (r) => r.dimensiones, maxTokens: 2400 };
+}
+
 const BUILDERS = {
   friccion: buildFriccion,
   pregunta: buildPregunta,
   mapa: buildMapa,
   divulgacion: buildDivulgacion,
-  notas: buildNotas
+  notas: buildNotas,
+  mde: buildMde
 };
 
 export default async function handler(req, res) {
@@ -219,7 +269,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { system, user, schemaKey, unwrap } = builder(payload);
+  const { system, user, schemaKey, unwrap, maxTokens } = builder(payload);
 
   try {
     const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -231,7 +281,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1600,
+        max_tokens: maxTokens || 1600,
         thinking: { type: "disabled" },
         system,
         output_config: {

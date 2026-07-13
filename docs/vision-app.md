@@ -43,6 +43,15 @@ Las notas de lectura (paso 6 actual, ya con sugerencia de IA opcional) se integr
 
 Orden pensado para que, si el tiempo aprieta antes del congreso, lo que sí esté listo sea justo el clímax (Fase A) y no las piezas de soporte.
 
+### Progreso
+
+- **Fase A, primera parte, HECHA y desplegada a producción (2026-07-12):**
+  - Generador de la MDE (tarea `mde` en `generate.js`, etapa nueva en `index.html`). Dimensiones adaptables a cualquier disciplina, celdas enlazadas a fuentes reales por DOI, sin inventar datos. Probado en local y en producción.
+  - Reencuadre de componentes del manuscrito (tarea `mapa` da los 4 componentes confirmados).
+  - Decidido con Manuel: taxonomía de 4 componentes tal cual, y dimensiones de la MDE siempre generadas por IA según el campo (genérico, no fijo para química).
+- **Fase A, lo que falta:** enriquecer el motor (`search.js`) con señales bibliométricas visibles (tipo de estudio, revista, y usar mejor citas/año/OA que ya vienen) y una evaluación de fuerza por componente. La búsqueda ya trae `citas`, `oa`, `anio`, `resumen`; falta exponerlos como señales de calidad en las tarjetas y sumar tipo de estudio y revista.
+- **Fases B, C, D:** pendientes.
+
 ## Principios que no se negocian
 
 - Nunca inventar citas: toda fuente viene de OpenAlex, con DOI real. Vale para la MDE y para las salidas de publicación.

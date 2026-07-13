@@ -12,7 +12,31 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 
 ## Última entrega
 
-**Fecha:** 2026-07-12 (segunda ronda del mismo día)
+**Fecha:** 2026-07-12 (tercera ronda del mismo día)
+**Quién:** sesión de Claude Code.
+
+### Qué se hizo
+
+- Se decidió con Manuel reposicionar la app de pedagógica a herramienta de investigador, reestructurando alrededor del motor bibliométrico, con la MDE como función estrella para el congreso del Colegio de Químicos (fin julio 2026). Plano en `docs/vision-app.md`, decisión en `lab/decision_log.md`.
+- **Fase A, primera parte, hecha y desplegada a producción:**
+  - Nueva etapa **Matriz de Decisión** (tarea `mde`): genera dimensiones de decisión adaptables a cualquier disciplina desde las referencias aceptadas, con celdas enlazadas a fuentes reales por DOI. Probada con `curl` en local (5 dimensiones bien fundamentadas para un caso de química) y en producción.
+  - El paso "Mapa bibliográfico" se reencuadró a "Componentes del trabajo": la tarea `mapa` da los 4 componentes de manuscrito confirmados. Probado, devuelve los 4 exactos.
+  - `migrateState()` protege el progreso guardado de usuarios previos al agregar la clave `mde`.
+- Verificado: `node --check` sobre `generate.js`, extracción y `node --check` del JS embebido de `index.html`, `scripts/verify.sh`, y `curl` real contra `vercel dev` y contra producción. Desplegado con `vercel --prod`.
+
+### Qué quedó roto o a medias
+
+- Nada roto. La Fase A quedó a medias por diseño: falta enriquecer `search.js` con señales bibliométricas visibles (tipo de estudio, revista) y evaluación de fuerza por componente. Ver `docs/vision-app.md` sección Progreso.
+- No se hizo verificación visual en navegador de la nueva etapa MDE (solo se probaron los endpoints con `curl` y la sintaxis del JS). Vale la pena abrir la app en el teléfono o en un navegador y recorrer el flujo completo hasta la Matriz antes del congreso.
+
+### Contexto de sesiones previas del mismo día (para no repetir trabajo)
+
+- Git ya inicializado y en GitHub (`mreyesg/eugenia-lab-biva`, privado). `ANTHROPIC_API_KEY` ya rotada y la vieja revocada. El paso 6 (notas de lectura) ya tiene sugerencia de IA opcional.
+- Los subagentes de rol (`explorador`/`implementador`/`verificador`) siguen sin registrarse por nombre hasta reiniciar Claude Code (gotcha documentado en `AGENTS.md`).
+
+---
+
+**Registro anterior (2026-07-12, segunda ronda):**
 **Quién:** sesión de Claude Code (continuación de la que instaló el arnés el 2026-07-09 y roto la API key más temprano hoy).
 
 ### Qué se hizo
