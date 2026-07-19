@@ -12,7 +12,37 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 
 ## Última entrega
 
-**Fecha:** 2026-07-13 (cierre de sesión antes de receso)
+**Fecha:** 2026-07-18
+**Quién:** sesión de Claude Code.
+
+Se avanzó la Fase C (salidas para publicar). Manuel pidió seguir a fondo con el desarrollo mientras Kamila, atrasada, reacciona a la prueba en frío hasta el lunes; así que esta sesión fue de código, no de validación con usuario.
+
+### Qué se hizo
+
+- **Nueva tarea `borradores` en `web/api/generate.js`** (la número 10). A partir de las referencias aceptadas (con la síntesis y la MDE como contexto opcional), genera cuatro borradores de párrafo citados, uno por cada componente del trabajo (`justificacion`, `metodos`, `comparacion`, `discusion`), más una `tabla_comparativa` con una fila por fuente (enfoque, hallazgo principal, limitación). Cada afirmación cita sus fuentes con marcadores `[n]`; el prompt prohíbe usar corchetes para anotaciones que no sean citas y mantiene el principio de nunca inventar. Sigue el patrón genérico existente (SCHEMA + builder + registro en BUILDERS), `maxTokens: 3200`.
+- **Informe de evidencia ampliado en `web/index.html`.** La sección "Borradores para publicar" (generar/regenerar con su propio estado de carga `borradoresState`, `fetch` propio a `/api/generate`), un selector de estilo de cita **APA / ACS / Vancouver** que reformatea la lista de referencias con `formatCitation()` (formateo puro de metadatos reales, sin IA), y todo incluido en la impresión/PDF y en la descarga de texto. Estado nuevo del proyecto: `borradores` y `citaEstilo`, rellenados por `migrateState()` en proyectos guardados.
+
+### Verificación
+
+- **Contrato de `borradores` contra la API real:** se invocó el handler de `generate.js` directamente en Node 22 (cargando la clave desde `web/.env.local` sin imprimirla). HTTP 200, los 4 párrafos + tabla comparativa de 3 filas, 18 marcadores `[n]` todos dentro de rango, y honestidad correcta (marcó como limitación que una fuente no aportaba TPC comparable). Se afinó el prompt para evitar un corchete no-cita que se coló en la primera corrida, y se re-verificó la sintaxis.
+- **Frontend:** se cargó el JS embebido de `index.html` en un contexto `vm` con DOM simulado y se ejercitaron las funciones reales del informe. 15/15 chequeos OK: los 3 estilos de cita, el render del informe con los 4 encabezados + tabla + selector, el handler `onchange` reformateando en vivo, la descarga de texto con borradores y estilo, y el estado vacío mostrando el botón generar.
+- `node --check` sobre `generate.js` y sobre el JS extraído de `index.html`: OK. `bash scripts/verify.sh`: 0 fallos, 0 advertencias.
+
+### Qué quedó roto o a medias
+
+- **Nada roto, pero NO desplegado.** Todos los cambios de esta sesión están en el árbol de trabajo local (y en el commit de la sesión), pero no se promovió a producción. El despliegue (`vercel --prod` desde `web/`) queda pendiente de la aprobación de Manuel, igual que en rondas anteriores.
+- No se recorrió en navegador real ni en teléfono físico (la verificación fue por contrato de API real + simulación de DOM en `vm`, no Playwright: no está instalado en esta máquina y bajarlo era pesado).
+- Estilos de cita limitados por los metadatos disponibles (falta volumen/páginas), así que APA/ACS/Vancouver salen aproximados. Queda por decidir si vale ampliarlos y si se quiere una salida específica por formato de divulgación.
+
+### Próximo paso recomendado
+
+1. Manuel revisa/aprueba y se despliega la Fase C a producción (`vercel --prod` desde `web/`), luego un recorrido rápido en teléfono.
+2. Prueba en frío de Kamila (sigue siendo el hito de validación más importante; ella reacciona hasta el lunes).
+3. Higiene de siempre: límite de gasto mensual en Anthropic, fijar el alias oficial de Vercel para el QR, generar el QR.
+
+---
+
+**Registro anterior: 2026-07-13 (cierre de sesión antes de receso)**
 **Quién:** sesión de Claude Code.
 
 Sesión larga con varios entregables, cada uno ya commiteado y documentado en su lugar. Este es el resumen del estado al cerrar; el detalle de cada pieza está en los registros anteriores de abajo y en los docs citados.

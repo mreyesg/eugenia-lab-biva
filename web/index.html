@@ -357,6 +357,10 @@ let refDraft = { titulo: "", autores: "", anio: "", resumen: "" };
 // Estado de la extracción de PDF en curso (transitorio).
 let pdfExtractState = { activo: false, error: "" };
 let pdfjsLoadPromise = null;
+// Estado de la generación de borradores para publicar (transitorio). Vive aquí
+// porque el informe de evidencia se dibuja fuera del render() principal, así que
+// no puede apoyarse en la bandera global "loading" de callAgent.
+let borradoresState = { activo: false, error: "" };
 
 function truncar(str, n){
   str = (str == null) ? "" : String(str);
@@ -379,6 +383,8 @@ function defaultProject(){
     mde: [],
     sintesis: [],
     notas: [],
+    borradores: null,
+    citaEstilo: "APA",
     divulgacion: {formato:"", outline:null},
     reflexion: {cambio:"", referencia:"", dificultad:"", usoIA:""}
   };
@@ -1631,6 +1637,9 @@ function showSummary(){
         <h3 style="font-size:15px;">Síntesis de evidencia</h3>
         <p>${(p.sintesis||[]).length} hallazgos entre consensos, contradicciones y brechas</p>
         <div class="divider"></div>
+        <h3 style="font-size:15px;">Borradores para publicar</h3>
+        <p>${p.borradores ? "Generados: justificación, métodos, comparación y discusión, con tabla comparativa" : "Aún no generados (disponibles en el informe de evidencia)"}</p>
+        <div class="divider"></div>
         <h3 style="font-size:15px;">Formato de divulgación</h3>
         <p>${escapeHtml(p.divulgacion.formato) || "(sin elegir)"}</p>
       </div>
@@ -1647,9 +1656,106 @@ function showSummary(){
   document.getElementById("btnNuevoProyecto").onclick = resetProject;
 }
 
-function citationText(r, i){
-  const doi = r.doi ? ` DOI: ${String(r.doi).replace(/^https?:\/\/(dx\.)?doi\.org\//i,"")}.` : "";
-  return `[${i+1}] ${r.autores||"Autor no disponible"} (${r.anio||"s.f."}). ${r.titulo}.${r.revista?` ${r.revista}.`:""}${doi}`;
+const ESTILOS_CITA = ["APA","ACS","Vancouver"];
+
+function normalizeDoi(doi){
+  return doi ? String(doi).replace(/^https?:\/\/(dx\.)?doi\.org\//i,"") : "";
+}
+
+// Formatea una referencia real según el estilo elegido. Es formateo puro de los
+// metadatos que ya trae la fuente (autores, año, título, revista, DOI): no se
+// inventa nada. El número n al inicio es el mismo que usan los marcadores [n] de
+// los borradores y de la síntesis/MDE, para que el lector pueda mapearlos.
+function formatCitation(r, i, estilo){
+  const n = i + 1;
+  const autores = r.autores || "Autor no disponible";
+  const anio = r.anio || "s.f.";
+  const titulo = r.titulo || "";
+  const revista = r.revista || "";
+  const doi = normalizeDoi(r.doi);
+  const doiTxt = doi ? ` https://doi.org/${doi}` : "";
+  if(estilo === "ACS"){
+    return `(${n}) ${autores}. ${titulo}.${revista?` ${revista}`:""} ${anio}.${doiTxt}`;
+  }
+  if(estilo === "Vancouver"){
+    return `${n}. ${autores}. ${titulo}.${revista?` ${revista}.`:""} ${anio}.${doiTxt}`;
+  }
+  // APA por defecto (autor-fecha). El [n] va como localizador para conectar con los borradores.
+  return `[${n}] ${autores} (${anio}). ${titulo}.${revista?` ${revista}.`:""}${doiTxt}`;
+}
+
+/* ============ FASE C: BORRADORES PARA PUBLICAR ============ */
+// Genera los borradores citados por sección + tabla comparativa. Hace su propio
+// fetch (no callAgent) porque el informe se dibuja fuera del render() principal;
+// gestiona su propio estado de carga (borradoresState) y vuelve a dibujar el
+// informe al terminar, igual patrón que la extracción de PDF.
+async function generarBorradores(){
+  const refs = state.bibliografia.filter(r=>r.estado==="aceptada");
+  if(refs.length < 1){ alert("Acepta al menos una referencia para generar borradores."); return; }
+  borradoresState = { activo: true, error: "" };
+  showEvidenceReport();
+  const referencias = refs.map(r=>({
+    titulo:r.titulo, autores:r.autores, anio:r.anio,
+    resumen:r.resumen||"", justificacion:r.justificacion||""
+  }));
+  try{
+    const resp = await fetch("/api/generate", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({task:"borradores", payload:{
+        idea: state.idea,
+        pregunta: state.pregunta,
+        referencias,
+        sintesis: state.sintesis || [],
+        mde: state.mde || []
+      }})
+    });
+    if(!resp.ok){
+      let msg = "No se pudieron generar los borradores.";
+      try{ const e = await resp.json(); if(e && e.error) msg = e.error; }catch(_){}
+      throw new Error(msg);
+    }
+    const data = await resp.json();
+    state.borradores = data.result || null;
+    saveState();
+    borradoresState = { activo: false, error: "" };
+  }catch(e){
+    console.error("Error generando borradores:", e);
+    borradoresState = { activo: false, error: e.message || "No se pudieron generar los borradores. Inténtalo de nuevo." };
+  }
+  showEvidenceReport();
+}
+
+// Bloque de "Borradores para publicar" dentro del informe de evidencia.
+function renderBorradoresReport(){
+  if(borradoresState.activo){
+    return reportSection("Borradores para publicar",
+      `<div class="loading"><div class="spinner"></div> EugenIA está redactando los borradores citados…</div>`);
+  }
+  const b = state.borradores;
+  if(!b){
+    const errHtml = borradoresState.error ? `<p class="hint" style="color:var(--danger);">${escapeHtml(borradoresState.error)}</p>` : "";
+    return reportSection("Borradores para publicar",
+      `<p>Convierte tu evidencia curada en borradores de párrafo citados por sección (justificación, métodos, comparación y discusión) y una tabla comparativa de tus fuentes. Cada afirmación cita las referencias reales por su número. Son un punto de partida para editar, no un texto final.</p>
+       ${errHtml}
+       <button class="btn btn-accent" id="btnGenBorradores" style="width:100%;">Generar borradores para publicar</button>`);
+  }
+  const secciones = [
+    ["Justificación y brecha", b.justificacion],
+    ["Métodos", b.metodos],
+    ["Comparación de resultados", b.comparacion],
+    ["Discusión y contraste", b.discusion]
+  ].map(([t,body])=> body ? `<h3 style="font-size:15px;margin-top:14px;">${t}</h3><p>${escapeHtml(body)}</p>` : "").join("");
+  const filas = (Array.isArray(b.tabla_comparativa)?b.tabla_comparativa:[]).map(row=>
+    `<tr><td>[${escapeHtml(String(row.fuente))}]</td><td>${escapeHtml(row.enfoque||"")}</td><td>${escapeHtml(row.hallazgo_principal||"")}</td><td>${escapeHtml(row.limitacion||"")}</td></tr>`
+  ).join("");
+  const tabla = filas
+    ? `<h3 style="font-size:15px;margin-top:16px;">Tabla comparativa de fuentes</h3><div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr><th>Fuente</th><th>Enfoque</th><th>Hallazgo principal</th><th>Limitación</th></tr></thead><tbody>${filas}</tbody></table></div>`
+    : "";
+  return reportSection("Borradores para publicar",
+    `<p class="hint">Los marcadores [n] remiten al número n de la referencia en la lista de abajo. Revisa y edita cada borrador; verifícalo contra los textos completos antes de publicar.</p>
+     ${secciones}${tabla}
+     <button class="btn btn-ghost" id="btnGenBorradores" style="width:100%;margin-top:12px;">Regenerar borradores</button>`);
 }
 
 function reportSection(title, body){
@@ -1668,7 +1774,11 @@ function showEvidenceReport(){
   const matrix = (state.mde||[]).map(d=>`
     <tr><td>${escapeHtml(d.dimension)}</td><td>${escapeHtml(d.hallazgo_evidencia)}</td><td>${escapeHtml(d.criterio_adoptado)}</td><td>${(d.fuentes||[]).map(n=>`[${n}]`).join(", ")}</td></tr>`).join("");
   const matrixHtml = matrix ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr><th>Dimensión</th><th>Evidencia</th><th>Criterio</th><th>Fuentes</th></tr></thead><tbody>${matrix}</tbody></table></div>` : `<p>No se ha generado una Matriz de Decisión.</p>`;
-  const bibliography = refs.map((r,i)=>`<li style="margin-bottom:10px;">${escapeHtml(citationText(r,i))}</li>`).join("") || `<li>No hay referencias aceptadas.</li>`;
+  const estilo = ESTILOS_CITA.includes(state.citaEstilo) ? state.citaEstilo : "APA";
+  const bibliography = refs.map((r,i)=>`<li style="margin-bottom:10px;">${escapeHtml(formatCitation(r,i,estilo))}</li>`).join("") || `<li>No hay referencias aceptadas.</li>`;
+  const estiloSelector = refs.length ? `
+    <label style="margin-top:0;">Estilo de cita</label>
+    <select id="citaEstilo" style="max-width:220px;">${ESTILOS_CITA.map(e=>`<option value="${e}" ${estilo===e?'selected':''}>${e}</option>`).join("")}</select>` : "";
   const app = document.getElementById("app");
   app.innerHTML = `<main style="padding-bottom:40px;">
     <div class="final-card"><h1 style="color:#fff;font-size:25px;">Informe de evidencia</h1><p>Biblioteca Viva · EugenIA Lab</p></div>
@@ -1680,13 +1790,18 @@ function showEvidenceReport(){
     ${reportSection("Foco de investigación", `<p><b>Tema:</b> ${escapeHtml(state.idea.tema)}</p><p><b>Pregunta:</b> ${escapeHtml(state.pregunta.pregunta_principal)}</p><p><b>Objetivo:</b> ${escapeHtml(state.pregunta.objetivo_general)||"No definido"}</p>`)}
     ${reportSection("Síntesis de evidencia", synthesis)}
     ${reportSection("Matriz de Decisión", matrixHtml)}
-    ${reportSection("Referencias aceptadas", `<ol style="padding-left:22px;">${bibliography}</ol>`)}
+    ${renderBorradoresReport()}
+    ${reportSection("Referencias aceptadas", `${estiloSelector}<ul style="list-style:none;padding-left:0;margin-top:12px;">${bibliography}</ul>`)}
     <p class="hint">Análisis generado a partir de títulos y resúmenes disponibles. Debe verificarse contra los textos completos antes de publicación o toma de decisiones definitiva.</p>
   </main>`;
   document.querySelectorAll("th,td").forEach(el=>{el.style.border="1px solid #DCE5D5";el.style.padding="8px";el.style.textAlign="left";el.style.verticalAlign="top";});
   document.getElementById("btnBackReport").onclick = showSummary;
   document.getElementById("btnPrintReport").onclick = () => window.print();
   document.getElementById("btnTextReport").onclick = downloadEvidenceReport;
+  const btnGenBorr = document.getElementById("btnGenBorradores");
+  if(btnGenBorr) btnGenBorr.onclick = generarBorradores;
+  const selEstilo = document.getElementById("citaEstilo");
+  if(selEstilo) selEstilo.onchange = () => { state.citaEstilo = selEstilo.value; saveState(); showEvidenceReport(); };
   window.scrollTo(0,0);
 }
 
@@ -1700,8 +1815,21 @@ function downloadEvidenceReport(){
   (state.sintesis||[]).forEach(h=>lines.push(`\n${h.tipo.toUpperCase()} | Confianza ${h.confianza}\n${h.hallazgo}\nImplicación: ${h.implicacion}\nFuentes: ${(h.fuentes||[]).map(n=>`[${n}]`).join(", ")}`));
   lines.push("", "MATRIZ DE DECISIÓN");
   (state.mde||[]).forEach(d=>lines.push(`\n${d.dimension}\nEvidencia: ${d.hallazgo_evidencia}\nCriterio: ${d.criterio_adoptado}\nFuentes: ${(d.fuentes||[]).map(n=>`[${n}]`).join(", ")}`));
-  lines.push("", "REFERENCIAS");
-  refs.forEach((r,i)=>lines.push(citationText(r,i)));
+  const b = state.borradores;
+  if(b){
+    lines.push("", "BORRADORES PARA PUBLICAR");
+    if(b.justificacion) lines.push(`\nJustificación y brecha:\n${b.justificacion}`);
+    if(b.metodos) lines.push(`\nMétodos:\n${b.metodos}`);
+    if(b.comparacion) lines.push(`\nComparación de resultados:\n${b.comparacion}`);
+    if(b.discusion) lines.push(`\nDiscusión y contraste:\n${b.discusion}`);
+    if(Array.isArray(b.tabla_comparativa) && b.tabla_comparativa.length){
+      lines.push("", "Tabla comparativa de fuentes");
+      b.tabla_comparativa.forEach(row=>lines.push(`[${row.fuente}] Enfoque: ${row.enfoque||"-"} | Hallazgo: ${row.hallazgo_principal||"-"} | Limitación: ${row.limitacion||"-"}`));
+    }
+  }
+  const estilo = ESTILOS_CITA.includes(state.citaEstilo) ? state.citaEstilo : "APA";
+  lines.push("", `REFERENCIAS (${estilo})`);
+  refs.forEach((r,i)=>lines.push(formatCitation(r,i,estilo)));
   lines.push("", "Nota: análisis basado en títulos y resúmenes disponibles; verificar con los textos completos.");
   const blob = new Blob([lines.join("\n")], {type:"text/plain;charset=utf-8"});
   const a = document.createElement("a");

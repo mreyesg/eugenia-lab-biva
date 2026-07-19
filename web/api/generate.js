@@ -1,6 +1,6 @@
 // Función serverless (Vercel) que actúa de proxy seguro hacia la API de Claude.
 // La clave ANTHROPIC_API_KEY vive solo en el servidor, nunca llega al navegador.
-// El navegador solo puede pedir una de las 4 tareas definidas abajo, con datos
+// El navegador solo puede pedir una de las tareas definidas abajo, con datos
 // estructurados: así la clave no queda expuesta como un "Claude gratis" para
 // cualquiera que escanee el QR.
 
@@ -182,6 +182,35 @@ const SCHEMAS = {
       anio: { type: "string" },
       resumen: { type: "string" }
     }
+  },
+  borradores: {
+    type: "object",
+    additionalProperties: false,
+    required: ["justificacion", "metodos", "comparacion", "discusion", "tabla_comparativa"],
+    properties: {
+      // Cuatro borradores de parrafo, uno por componente del trabajo. Cada uno
+      // cita sus fuentes con marcadores [n] que remiten a las referencias
+      // aceptadas numeradas.
+      justificacion: { type: "string" },
+      metodos: { type: "string" },
+      comparacion: { type: "string" },
+      discusion: { type: "string" },
+      tabla_comparativa: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["fuente", "enfoque", "hallazgo_principal", "limitacion"],
+          properties: {
+            // Numero (1-based) de la referencia aceptada que resume esta fila.
+            fuente: { type: "integer" },
+            enfoque: { type: "string" },
+            hallazgo_principal: { type: "string" },
+            limitacion: { type: "string" }
+          }
+        }
+      }
+    }
   }
 };
 
@@ -339,6 +368,45 @@ function buildExtraerReferencia(p) {
   return { system, user, schemaKey: "extraerReferencia", unwrap: (r) => r, maxTokens: 700 };
 }
 
+// Convierte la evidencia ya curada (referencias aceptadas, sintesis y MDE) en
+// borradores de seccion listos para adaptar a un manuscrito, mas una tabla
+// comparativa de fuentes. Cada afirmacion se ancla a las fuentes reales por [n];
+// nunca inventa resultados ni citas (mismo principio que mde y sintesis).
+function buildBorradores(p) {
+  const idea = p.idea || {};
+  const preg = p.pregunta || {};
+  const refs = Array.isArray(p.referencias) ? p.referencias : [];
+  const lista = refs
+    .map((r, i) => {
+      const n = i + 1;
+      return (
+        `[${n}] ${s(r.titulo)} (${s(r.autores)}, ${s(r.anio)})\n` +
+        `    Resumen: ${s(r.resumen)}\n` +
+        `    Aporte: ${s(r.justificacion)}`
+      );
+    })
+    .join("\n");
+  const sint = Array.isArray(p.sintesis) ? p.sintesis : [];
+  const sintTxt = sint
+    .map((h) => `- (${s(h.tipo)}) ${s(h.hallazgo)} [fuentes: ${(Array.isArray(h.fuentes) ? h.fuentes : []).join(", ")}]`)
+    .join("\n");
+  const mde = Array.isArray(p.mde) ? p.mde : [];
+  const mdeTxt = mde.map((d) => `- ${s(d.dimension)}: ${s(d.criterio_adoptado)}`).join("\n");
+  const system =
+    "Eres un asistente de redaccion cientifica. Conviertes evidencia ya curada en borradores de secciones de un manuscrito. Cada afirmacion que dependa de la literatura debe citar, con marcadores del tipo [n], el numero de la o las fuentes que la sostienen, usando solo numeros que aparezcan en la lista provista. Nunca inventas resultados, cifras ni fuentes: si algo no esta sostenido por los resumenes provistos, no lo afirmas. Los borradores son un punto de partida que el investigador debe revisar y editar, no un texto final. Respondes unicamente con datos estructurados.";
+  const user =
+    `Tema: ${s(idea.tema)}\n` +
+    `Pregunta principal: ${s(preg.pregunta_principal)}\n` +
+    `Objetivo general: ${s(preg.objetivo_general)}\n\n` +
+    `Referencias aceptadas (numeradas):\n${lista}\n\n` +
+    (sintTxt ? `Sintesis de evidencia ya generada:\n${sintTxt}\n\n` : "") +
+    (mdeTxt ? `Criterios de la Matriz de Decision ya adoptados:\n${mdeTxt}\n\n` : "") +
+    "Redacta, en espanol y especifico a este proyecto, cuatro borradores de parrafo listos para adaptar a un manuscrito, uno por cada componente del trabajo: " +
+    "'justificacion' (justificacion y brecha, para la introduccion), 'metodos' (que enfoques metodologicos sostiene la evidencia y como se justifica el propio), 'comparacion' (comparacion de resultados entre las fuentes) y 'discusion' (discusion y contraste: donde la literatura concuerda o discrepa y como se posiciona el aporte). " +
+    "Cada parrafo debe citar sus fuentes con marcadores [n]. Usa los corchetes UNICAMENTE para citar numeros de fuentes (por ejemplo [1] o [2, 3]); nunca los uses para anotaciones, notas al editor ni comentarios como '[criterio adoptado]'. Ademas, genera 'tabla_comparativa' con una fila por cada fuente aceptada relevante: 'fuente' es su numero, 'enfoque' resume su metodo o angulo en pocas palabras, 'hallazgo_principal' su resultado central, y 'limitacion' su alcance o limitacion segun el resumen. No inventes contenido que las fuentes no puedan sostener; si un resumen no da informacion para una celda, se breve y honesto.";
+  return { system, user, schemaKey: "borradores", unwrap: (r) => r, maxTokens: 3200 };
+}
+
 const BUILDERS = {
   friccion: buildFriccion,
   pregunta: buildPregunta,
@@ -348,7 +416,8 @@ const BUILDERS = {
   mde: buildMde,
   sintesis: buildSintesis,
   reenfoque: buildReenfoque,
-  extraerReferencia: buildExtraerReferencia
+  extraerReferencia: buildExtraerReferencia,
+  borradores: buildBorradores
 };
 
 export default async function handler(req, res) {

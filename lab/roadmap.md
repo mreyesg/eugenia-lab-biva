@@ -21,7 +21,7 @@ EugenIA Lab traduce evidencia bibliométrica curada en decisiones de investigaci
 
 ### Mediano plazo (3–12 meses)
 
-- [ ] Fase C completa: salidas orientadas a publicación (tabla comparativa, borradores citados de justificación, métodos y discusión) en estilos de cita estándar.
+- [~] Fase C: salidas orientadas a publicación. La tabla comparativa, los borradores citados por sección (justificación, métodos, comparación, discusión) y los estilos de cita estándar (APA / ACS / Vancouver) ya están implementados y verificados (2026-07-18), pendientes de desplegar a producción. Falta decidir si se quieren estilos de cita más completos (limitados hoy por los metadatos disponibles) y una salida específica por formato de divulgación.
 - [ ] Fase D: pulido de lenguaje de investigador en toda la app.
 - [ ] Semestre de Kamila (CIFI 4996, ago-dic 2026): integrar la extracción estructurada de variables experimentales cuantitativas al pipeline de EugenIA (meta EugenIA v2.0). Ver `reference/Plan_Trabajo_Kamila_Ago-Dic2026.pdf`.
 - [ ] Primer paso de la extensión estratégica: insumo de "tus propios resultados" y una tarea de auditoría de defendibilidad anclada a evidencia (ver Líneas futuras).
@@ -39,7 +39,7 @@ EugenIA Lab traduce evidencia bibliométrica curada en decisiones de investigaci
 
 | Línea | Descripción | Estado |
 |-------|-------------|--------|
-| Motor bibliométrico y MDE | Búsqueda multi-fuente real, señales de calidad, Matriz de Decisión, síntesis, informe. | Fases A y B completas y en producción; Fase C iniciada. |
+| Motor bibliométrico y MDE | Búsqueda multi-fuente real, señales de calidad, Matriz de Decisión, síntesis, informe. | Fases A y B completas y en producción; Fase C avanzada (borradores citados por sección, tabla comparativa y estilos de cita verificados el 2026-07-18, pendientes de desplegar). |
 | Herramienta de investigador | Modo investigador, entrada rápida, lenguaje de investigador. | Modo investigador desplegado; pulido de lenguaje (Fase D) pendiente. |
 | Incorporar fuentes propias | Subir PDF propio y extraer su referencia; señal de acceso cerrado. | Desplegado (2026-07-13). |
 | Documentación viva | Ponencia sobre el desarrollo de la app, como base de publicación. | Primera versión creada (`presentation/`); se actualiza por hitos. |

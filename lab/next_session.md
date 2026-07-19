@@ -2,6 +2,19 @@
 
 Agenda y preparación para la próxima sesión de trabajo.
 
+## Arranque recomendado (actualizado 2026-07-18)
+
+**En la sesión del 2026-07-18 se avanzó la Fase C (salidas para publicar):** el informe de evidencia ahora genera borradores de párrafo citados por sección (justificación, métodos, comparación, discusión) más una tabla comparativa de fuentes, y ofrece un selector de estilo de cita APA / ACS / Vancouver. Verificado contra la API real y con simulación de DOM (15/15 chequeos), 0 fallos en `verify.sh`. **NO se desplegó a producción**: queda a la aprobación de Manuel. Detalle en `docs/handoff.md` (entrada 2026-07-18), `docs/current-status.md` y `docs/decisions.md` (2026-07-18).
+
+Próximos pasos, en orden:
+
+1. **Desplegar la Fase C a producción** (`vercel --prod` desde `web/`) con el visto bueno de Manuel, y recorrer el informe con borradores en el teléfono.
+2. **Prueba en frío de Kamila** (sigue pendiente; ella se atrasó y reacciona hasta el lunes). Es el hito de validación más importante.
+3. Decidir si se amplían los estilos de cita (hoy aproximados por falta de volumen/páginas en las fuentes gratuitas) y si se quiere una salida específica por formato de divulgación.
+4. Higiene de siempre: límite de gasto mensual en Anthropic, fijar el alias oficial de Vercel para el QR, generar el QR.
+
+---
+
 ## Arranque recomendado para 2026-07-14
 
 **El plan que estaba aquí ya se hizo el 2026-07-13** (segunda y tercera ronda del mismo día): el recorrido completo del Modo investigador se validó con un navegador real, se corrigió un bug de truncamiento en "Componentes del trabajo", y se agregaron dos mejoras al motor de evidencia (señal de acceso cerrado con recomendación manual, y subida de PDF propio con extracción de referencia). **B+ con ambas mejoras ya está en producción** (`https://web-beta-hazel-49.vercel.app`). Detalle completo en `docs/handoff.md`, `docs/current-status.md` y `lab/decision_log.md` (entrada 2026-07-13).
