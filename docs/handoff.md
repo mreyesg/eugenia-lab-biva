@@ -28,16 +28,25 @@ Se avanzó la Fase C (salidas para publicar). Manuel pidió seguir a fondo con e
 - **Frontend:** se cargó el JS embebido de `index.html` en un contexto `vm` con DOM simulado y se ejercitaron las funciones reales del informe. 15/15 chequeos OK: los 3 estilos de cita, el render del informe con los 4 encabezados + tabla + selector, el handler `onchange` reformateando en vivo, la descarga de texto con borradores y estilo, y el estado vacío mostrando el botón generar.
 - `node --check` sobre `generate.js` y sobre el JS extraído de `index.html`: OK. `bash scripts/verify.sh`: 0 fallos, 0 advertencias.
 
+### Aprobación y despliegue (mismo día, continuación)
+
+- Se generó una vista previa visual (artefacto) del informe con contenido real de una corrida de `borradores`, reutilizando exactamente la paleta y tipografía de `index.html` (nada de diseño nuevo, es la pantalla real). Manuel la revisó y aprobó explícitamente: "perfectamente alineado" con el trabajo de Kamila, y anotó que la generación a partir de datos reales de literatura le será particularmente útil a ella. Esa conexión con el plan formal de Kamila (no solo la demo del congreso) quedó guardada en memoria de largo plazo.
+- Manuel pidió desplegar de inmediato para que Kamila pueda acceder a una versión más adelantada de la app.
+- **Gotcha de esta sesión: el despliegue se intentó desde una máquina distinta a la habitual** (la laptop de Manuel, no la de escritorio donde se hizo el resto del desarrollo). Esa laptop no tenía sesión de Vercel CLI (`Error: The specified token is not valid`) ni Node.js/`npx` en el PATH del sistema. Se resolvió sin instalar nada nuevo: el Node portátil ya presente en el repo (`.tools/node-v22.23.0-win-x64`, el mismo que se instaló hace días por el problema de permisos de administrador en la otra máquina) se agregó al PATH de la sesión, y Manuel corrió `vercel login` él mismo en su propia terminal (paso interactivo que el agente no puede completar, y que por el patrón de seguridad del proyecto tampoco se intentó resolver pidiéndole un token por el chat). Una vez autenticado como `mreyesg`, el despliegue procedió normalmente.
+- **Desplegado a producción:** `vercel --prod` desde `web/`, deployment `dpl_26rhM1oGvG9S9C4ktScu1HFrjDNU`, alias `web-beta-hazel-49.vercel.app` actualizado automáticamente (el mismo alias de siempre).
+- **Verificado en producción real, no solo el despliegue:** `curl` confirmó que `index.html` servido ya contiene "Borradores para publicar" y el selector `citaEstilo`; una llamada POST real a `/api/generate` tarea `borradores` contra producción devolvió HTTP 200 con los 4 párrafos y la tabla, manejando bien el caso límite de una sola fuente de prueba (no inventó comparaciones sin sustento). `bash scripts/verify.sh --network`: 0 fallos.
+
 ### Qué quedó roto o a medias
 
-- **Nada roto, pero NO desplegado.** Todos los cambios de esta sesión están en el árbol de trabajo local (y en el commit de la sesión), pero no se promovió a producción. El despliegue (`vercel --prod` desde `web/`) queda pendiente de la aprobación de Manuel, igual que en rondas anteriores.
-- No se recorrió en navegador real ni en teléfono físico (la verificación fue por contrato de API real + simulación de DOM en `vm`, no Playwright: no está instalado en esta máquina y bajarlo era pesado).
+- Nada roto. Fase C (borradores citados + tabla comparativa + estilos de cita) está en producción y verificada.
+- No se recorrió en navegador real ni en teléfono físico (la verificación fue por contrato de API real, simulación de DOM en `vm`, y `curl` directo contra producción; no Playwright: no está instalado en esta máquina y bajarlo era pesado).
 - Estilos de cita limitados por los metadatos disponibles (falta volumen/páginas), así que APA/ACS/Vancouver salen aproximados. Queda por decidir si vale ampliarlos y si se quiere una salida específica por formato de divulgación.
+- La laptop de Manuel (usada hoy) ahora tiene su propia sesión de Vercel CLI autenticada, pero sigue sin Node.js instalado globalmente; futuras sesiones desde esa máquina necesitarán el mismo paso de agregar `.tools/node-v22.23.0-win-x64` al PATH antes de cualquier comando de `npm`/`npx`/`vercel`.
 
 ### Próximo paso recomendado
 
-1. Manuel revisa/aprueba y se despliega la Fase C a producción (`vercel --prod` desde `web/`), luego un recorrido rápido en teléfono.
-2. Prueba en frío de Kamila (sigue siendo el hito de validación más importante; ella reacciona hasta el lunes).
+1. Prueba en frío de Kamila con la versión ya adelantada en producción (sigue siendo el hito de validación más importante; ella reacciona hasta el lunes).
+2. Manuel recorre producción en teléfono físico cuando pueda.
 3. Higiene de siempre: límite de gasto mensual en Anthropic, fijar el alias oficial de Vercel para el QR, generar el QR.
 
 ---
