@@ -13,7 +13,7 @@ Próximos pasos, en orden:
 1. **Prueba en frío de Kamila** con la versión ya adelantada en producción (sigue pendiente; ella se atrasó y reacciona hasta el lunes). Es el hito de validación más importante.
 2. Manuel recorre producción en teléfono físico cuando pueda.
 3. Decidir si se amplían los estilos de cita (hoy aproximados por falta de volumen/páginas en las fuentes gratuitas) y si se quiere una salida específica por formato de divulgación.
-4. Higiene de siempre: límite de gasto mensual en Anthropic, fijar el alias oficial de Vercel para el QR, generar el QR.
+4. Higiene: solo queda el límite de gasto mensual en Anthropic (Manuel, en la consola). El alias de Vercel y el QR ya están resueltos (`poster/assets/qr-produccion.svg`/`.png`, 2026-07-18).
 
 ---
 

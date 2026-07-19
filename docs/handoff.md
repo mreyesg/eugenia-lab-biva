@@ -12,7 +12,30 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 
 ## Última entrega
 
-**Fecha:** 2026-07-18 (continuación: Fase D)
+**Fecha:** 2026-07-18 (continuación: higiene operativa)
+**Quién:** sesión de Claude Code.
+
+Tras Fase D, Manuel pidió continuar con la higiene operativa que se había ofrecido como opción antes. Dos de los tres pendientes de siempre quedaron cerrados:
+
+### Qué se hizo
+
+- **Alias oficial de Vercel confirmado.** `vercel inspect web-beta-hazel-49.vercel.app` mostró que las 3 URLs (`web-beta-hazel-49.vercel.app`, `web-mreyesgs-projects.vercel.app`, `web-mreyesg-mreyesgs-projects.vercel.app`) son alias de proyecto en Vercel, no bindings a un deployment puntual, y ya se habían re-apuntado automáticamente al deployment de Fase C sin ninguna acción manual (confirmado por la salida del propio despliegue de hoy: "▲ Aliased https://web-beta-hazel-49.vercel.app"). La preocupación de inestabilidad que motivaba este pendiente (que un despliegue futuro sin `--prod` los dejara desactualizados) no aplicaba: ya eran estables. Solo faltaba la decisión explícita: `web-beta-hazel-49.vercel.app` queda como la oficial para el QR, documentado en `docs/current-status.md`.
+- **QR generado.** `poster/assets/qr-produccion.svg` (vectorial, para impresión en el póster de 44x60") y `poster/assets/qr-produccion.png` (1200px, para vista rápida/presentación), apuntando a la URL oficial. Generado 100% local con la librería `qrcode` vía `npx` (nivel de corrección de errores H, sin llamar a ningún servicio externo que pudiera registrar la URL). **Verificado, no solo generado:** se decodificó el PNG de vuelta con `jsqr` en un entorno de prueba aislado (instalado en una carpeta temporal fuera del repo, borrada al terminar) y el contenido coincidió exactamente con la URL esperada. También se inspeccionó visualmente la imagen.
+
+### Qué quedó pendiente
+
+- **Límite de gasto mensual en Anthropic:** sigue siendo tarea de Manuel en la consola de Anthropic, un agente no puede hacerlo.
+- Fase D (comiteada antes en esta misma sesión) sigue sin desplegar a producción.
+
+### Próximo paso recomendado
+
+1. Manuel define el límite de gasto en la consola de Anthropic (el único pendiente de higiene que queda).
+2. Decidir si se despliega Fase D ahora o se agrupa con el siguiente cambio.
+3. Prueba en frío de Kamila (sigue pendiente, ella reacciona hasta el lunes).
+
+---
+
+**Registro anterior: 2026-07-18 (Fase D)**
 **Quién:** sesión de Claude Code.
 
 Con Fase C ya en producción y aprobada, Manuel preguntó si podíamos adelantar algo más mientras Kamila reacciona. Le ofrecí tres direcciones (Fase D, higiene operativa, o el primer paso de la extensión estratégica) y eligió Fase D: pulir el lenguaje de investigador en toda la app.

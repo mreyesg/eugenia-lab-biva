@@ -18,12 +18,12 @@ Este archivo es el snapshot *técnico/operativo* para que un agente nuevo sepa e
 
   **Fix aplicado y redesplegado (deployment `dpl_5bdyoCA9x3ioQxWgrBkqyT4ywuGQ`):** `mapa` y `divulgacion` ahora piden `maxTokens: 2200` (mismo orden de magnitud que `mde` y `sintesis`, que ya lo tenían). El handler agregó un guard explícito: si `stop_reason === "max_tokens"`, responde `502` con `{"error":"La respuesta del agente quedo incompleta. Intenta de nuevo."}` en vez de intentar parsear JSON truncado. Verificado con 4 llamadas directas más a `/api/generate` (tarea `mapa`) contra producción tras el fix: 4/4 limpias.
 
-- **URL de producción:** `https://web-beta-hazel-49.vercel.app`. Confirmado con `vercel alias ls` que hay 3 alias apuntando al mismo deployment actual (13h de antigüedad al momento de revisar):
-  - `web-beta-hazel-49.vercel.app` (la que usan `lab/next_session.md` y el README)
+- **URL de producción, oficial para el QR: `https://web-beta-hazel-49.vercel.app`.** Confirmado y cerrado el 2026-07-18: `vercel inspect web-beta-hazel-49.vercel.app` muestra que es un alias del proyecto (no un `vercel alias set` puntual a un deployment concreto), y que se re-apuntó automáticamente al deployment de Fase C (`dpl_26rhM1oGvG9S9C4ktScu1HFrjDNU`) sin ninguna acción manual, junto con los otros dos alias del mismo proyecto:
+  - `web-beta-hazel-49.vercel.app` (**la oficial, usada en `lab/next_session.md`, el README y el QR del póster**)
   - `web-mreyesgs-projects.vercel.app`
   - `web-mreyesg-mreyesgs-projects.vercel.app`
 
-  Los tres sirven lo mismo hoy. No hay una alias "fija" elegida deliberadamente para el QR del póster; si un despliegue futuro no incluye `--prod` o cambia de nombre, no está garantizado que seguirán apuntando al mismo sitio. Pendiente: decidir uno y, si se quiere estabilidad, fijarlo con `vercel alias set`.
+  Los tres son alias de proyecto en Vercel (no bindings a un deployment específico), así que **cualquier `vercel --prod` futuro los re-apunta automáticamente** sin necesidad de `vercel alias set` manual. La preocupación de inestabilidad que motivaba este pendiente no aplicaba: ya eran estables, solo faltaba la decisión explícita de cuál usar para el QR, que queda cerrada aquí.
 
 - **Variables de entorno en Vercel** (`npx vercel env ls`, verificado 2026-07-12): `ANTHROPIC_API_KEY` presente y separada en los 3 entornos (`Production`, `Preview`, `Development`), cada una agregada independientemente (ya no una sola entrada compartiendo Production+Preview como antes).
 
@@ -73,8 +73,11 @@ Confirmado por inspección de código, no solo por lo que dice `lab/project_stat
 
 ## Pendientes activos
 
-- Definir límite de gasto mensual en la consola de Anthropic.
-- Generar el QR hacia la URL de producción elegida.
-- Decidir cuál de los 3 alias de Vercel es "el" link oficial para el QR (`web-beta-hazel-49.vercel.app` es el que se usa hoy en la práctica, pero no se fijó explícitamente con `vercel alias set`).
-- Llenar `lab/roadmap.md` (sigue casi vacío).
+- Definir límite de gasto mensual en la consola de Anthropic (requiere a Manuel en la consola, no se puede hacer por agente).
 - Considerar si `friccion`, `pregunta` y `notas` (que se quedaron en el `maxTokens` default de 1600) necesitan el mismo margen que se le dio a `mapa` y `divulgacion`; por ahora no se ha visto evidencia de que trunquen, pero tampoco se probaron a fondo en esta ronda.
+- Decidir si se despliega ya la Fase D (primera pasada de pulido de lenguaje, comiteada el 2026-07-18, verificada, no desplegada) o se agrupa con el siguiente cambio.
+
+## Higiene operativa (cerrada el 2026-07-18)
+
+- ~~Generar el QR hacia la URL de producción elegida.~~ **Hecho:** `poster/assets/qr-produccion.svg` (vectorial, para el póster impreso) y `poster/assets/qr-produccion.png` (1200px, para vista rápida/presentación), ambos generados localmente con la librería `qrcode` (nivel de corrección de errores H, sin llamar a ningún servicio externo) apuntando a `https://web-beta-hazel-49.vercel.app`. Verificado decodificando el PNG de vuelta con `jsqr`: el contenido coincide exactamente con la URL esperada. Verificado también visualmente (inspección de la imagen).
+- ~~Decidir cuál de los 3 alias de Vercel es "el" link oficial para el QR.~~ **Hecho:** ver la entrada de infraestructura arriba. `web-beta-hazel-49.vercel.app` es la oficial; los tres alias son estables (bindings de proyecto, no de un deployment puntual), no había riesgo real de que se desactualizaran.

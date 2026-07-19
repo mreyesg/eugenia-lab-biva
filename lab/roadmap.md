@@ -17,7 +17,7 @@ EugenIA Lab traduce evidencia bibliométrica curada en decisiones de investigaci
 - [ ] Validación real de Biblioteca Viva: prueba en frío con Kamila usando la app sola, sin guía, y recoger qué logra y dónde se pierde.
 - [ ] Recorrer producción en un teléfono físico real antes de imprimir el QR para el congreso.
 - [ ] Congreso del Colegio de Químicos de Puerto Rico (fin de julio 2026): presentar la app con la MDE como función estrella.
-- [ ] Higiene operativa: límite de gasto mensual en Anthropic, alias oficial de Vercel fijado, QR generado.
+- [~] Higiene operativa: alias oficial de Vercel confirmado y QR generado (`poster/assets/qr-produccion.svg`/`.png`), ambos cerrados el 2026-07-18. Queda pendiente el límite de gasto mensual en Anthropic (tiene que hacerlo Manuel en la consola).
 
 ### Mediano plazo (3–12 meses)
 
