@@ -42,6 +42,10 @@ La más rigurosa de la sesión, dado el riesgo de la tarea: contrato probado con
 2. Prueba en frío de Kamila (sigue siendo el hito más importante, hasta el lunes).
 3. Mencionar la auditoría en el póster como trabajo en curso, una vez aprobada.
 
+### Nota de cierre
+
+Manuel pidió cerrar la sesión y apagar la máquina al terminar. Árbol de trabajo revisado antes de comitear: quedan sin comitear 3 archivos de `presentation/` (`Presentacion_Biblioteca_Viva.pptx`, `README.md`, `src/build_presentation.js`, cambio pequeño: 5 líneas en los `.md`/`.js`) que **ya estaban modificados al iniciar esta sesión**, esta sesión nunca los tocó. No se comitearon porque no hay forma de confirmar si es trabajo en curso intencional de otra sesión o un cambio accidental; queda para que Manuel lo revise y decida (`git diff -- presentation/` para verlo, o `git checkout -- presentation/` si decide descartarlo).
+
 ---
 
 **Registro anterior: 2026-07-18 (continuación: higiene operativa)**
