@@ -831,14 +831,14 @@ async function generarPregunta(){
   render();
 }
 
-/* ============ STEP 4: MAPA BIBLIOGRÁFICO ============ */
+/* ============ STEP 4: COMPONENTES DEL TRABAJO ============ */
 function renderMapa(){
   const hasMap = state.mapa && state.mapa.length > 0;
   return `
   ${!hasMap ? `
     <div class="card">
-      <p>El mapa bibliográfico define qué perspectivas necesita cubrir tu literatura, antes de buscar artículos.</p>
-      <button class="btn btn-accent" id="btnGenerarMapa" style="width:100%;">Generar mapa bibliográfico</button>
+      <p>Antes de salir a buscar literatura, EugenIA identifica los componentes de tu manuscrito y qué evidencia necesita cada uno para sostenerse.</p>
+      <button class="btn btn-accent" id="btnGenerarMapa" style="width:100%;">Identificar componentes del trabajo</button>
     </div>
   ` : `
     <div class="ai-badge">${AI_ICON} Sugerido por EugenIA</div>
@@ -848,7 +848,7 @@ function renderMapa(){
         <p style="font-size:14px;margin:0;">${escapeHtml(m.que_necesito)}</p>
       </div>
     `).join("")}
-    <button class="btn btn-ghost" id="btnRegenerarMapa" style="width:100%;margin-top:4px;">Regenerar mapa</button>
+    <button class="btn btn-ghost" id="btnRegenerarMapa" style="width:100%;margin-top:4px;">Regenerar componentes</button>
   `}`;
 }
 
@@ -878,7 +878,7 @@ function renderBibliografia(){
   return `
   ${mapa.length === 0 ? `
     <div class="card tint">
-      <p style="margin:0;">Para que EugenIA te proponga artículos base, primero genera el <b>mapa bibliográfico</b> en el paso anterior. Aun así puedes añadir referencias manualmente más abajo.</p>
+      <p style="margin:0;">Para que EugenIA te proponga artículos base, primero identifica los <b>componentes del trabajo</b> en el paso anterior. Aun así puedes añadir referencias manualmente más abajo.</p>
     </div>
   ` : `
     <div class="ai-badge">${AI_ICON} Resultados científicos evaluados por EugenIA</div>
@@ -1505,7 +1505,7 @@ async function generarNota(){
 }
 
 /* ============ STEP 7: DIVULGACIÓN ============ */
-const FORMATOS = ["Presentación oral","Póster académico","Informe final","Mini paper","Video educativo","Página web","Infografía"];
+const FORMATOS = ["Artículo científico","Ponencia de congreso","Presentación oral","Póster académico","Informe final","Mini paper","Video educativo","Página web","Infografía"];
 
 function renderDivulgacion(){
   const d = state.divulgacion;
@@ -1619,7 +1619,7 @@ function showSummary(){
     <main>
       <div class="final-card">
         <h2>Tu proyecto está organizado</h2>
-        <p>Este es un resumen de tu recorrido por Biblioteca Viva.</p>
+        <p>Resumen de tu foco, tu evidencia y tus decisiones en Biblioteca Viva.</p>
       </div>
       <div class="card" style="margin-top:16px;">
         <h3 style="font-size:15px;">Tema</h3>

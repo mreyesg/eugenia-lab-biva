@@ -22,7 +22,7 @@ EugenIA Lab traduce evidencia bibliométrica curada en decisiones de investigaci
 ### Mediano plazo (3–12 meses)
 
 - [~] Fase C: salidas orientadas a publicación. La tabla comparativa, los borradores citados por sección (justificación, métodos, comparación, discusión) y los estilos de cita estándar (APA / ACS / Vancouver) ya están implementados, verificados y **en producción (2026-07-18)**. Falta decidir si se quieren estilos de cita más completos (limitados hoy por los metadatos disponibles) y una salida específica por formato de divulgación.
-- [ ] Fase D: pulido de lenguaje de investigador en toda la app.
+- [~] Fase D: pulido de lenguaje de investigador en toda la app. Primera pasada hecha (2026-07-18): corregido un desfase real (restos de "mapa bibliográfico"/"perspectivas" en el paso ya renombrado a "Componentes del trabajo"), ampliada la lista de formatos de divulgación con opciones profesionales, y ajustado el subtítulo del resumen final. El resto de los pasos ya estaba en tono adecuado. Vale una relectura humana antes del congreso.
 - [ ] Semestre de Kamila (CIFI 4996, ago-dic 2026): integrar la extracción estructurada de variables experimentales cuantitativas al pipeline de EugenIA (meta EugenIA v2.0). Ver `reference/Plan_Trabajo_Kamila_Ago-Dic2026.pdf`.
 - [ ] Primer paso de la extensión estratégica: insumo de "tus propios resultados" y una tarea de auditoría de defendibilidad anclada a evidencia (ver Líneas futuras).
 
@@ -40,7 +40,7 @@ EugenIA Lab traduce evidencia bibliométrica curada en decisiones de investigaci
 | Línea | Descripción | Estado |
 |-------|-------------|--------|
 | Motor bibliométrico y MDE | Búsqueda multi-fuente real, señales de calidad, Matriz de Decisión, síntesis, informe. | Fases A y B completas y en producción; Fase C avanzada, en producción (borradores citados por sección, tabla comparativa y estilos de cita, desplegados el 2026-07-18). |
-| Herramienta de investigador | Modo investigador, entrada rápida, lenguaje de investigador. | Modo investigador desplegado; pulido de lenguaje (Fase D) pendiente. |
+| Herramienta de investigador | Modo investigador, entrada rápida, lenguaje de investigador. | Modo investigador desplegado; pulido de lenguaje (Fase D) con primera pasada hecha el 2026-07-18. |
 | Incorporar fuentes propias | Subir PDF propio y extraer su referencia; señal de acceso cerrado. | Desplegado (2026-07-13). |
 | Documentación viva | Ponencia sobre el desarrollo de la app, como base de publicación. | Primera versión creada (`presentation/`); se actualiza por hitos. |
 

@@ -12,7 +12,37 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 
 ## Última entrega
 
-**Fecha:** 2026-07-18
+**Fecha:** 2026-07-18 (continuación: Fase D)
+**Quién:** sesión de Claude Code.
+
+Con Fase C ya en producción y aprobada, Manuel preguntó si podíamos adelantar algo más mientras Kamila reacciona. Le ofrecí tres direcciones (Fase D, higiene operativa, o el primer paso de la extensión estratégica) y eligió Fase D: pulir el lenguaje de investigador en toda la app.
+
+### Qué se hizo
+
+Auditoría completa del copy de `web/index.html`, paso por paso, buscando tono de tutorial o terminología obsoleta. Encontré un desfase real, no solo cosmético: cuando el paso "Mapa bibliográfico" se renombró a "Componentes del trabajo" en la Fase A (2026-07-12), el texto interno de tres lugares no se actualizó y seguía hablando de "mapa bibliográfico" y generando/regenerando un "mapa": el botón para generarlo, el de regenerarlo, y el hint del paso de Bibliografía cuando aún no hay componentes generados. Los tres quedaron corregidos.
+
+Además: la lista de formatos de divulgación (compartida por ambos modos, investigador incluido) no tenía ninguna opción claramente profesional pese a que la app ahora se presenta como herramienta de investigador; se agregaron "Artículo científico" y "Ponencia de congreso" al inicio de la lista, sin quitar las opciones pedagógicas que sirven al modo guiado. Y el subtítulo de la pantalla de resumen final se ajustó de "tu recorrido por Biblioteca Viva" a "tu foco, tu evidencia y tus decisiones".
+
+El resto de los pasos (Idea en modo investigador, Bibliografía, MDE, Síntesis, Notas, informe de evidencia) ya estaban en tono adecuado de rondas anteriores, no se tocaron. Fricción, Pregunta y Reflexión son exclusivos del modo guiado y mantienen tono pedagógico a propósito, tampoco se tocaron.
+
+### Verificación
+
+`node --check` sobre el JS embebido de `index.html`: OK. Se ejercitó el render real en un contexto `vm` con DOM simulado (mismo patrón que Fase C): 10/10 chequeos, cubriendo los 3 puntos corregidos, ausencia de "mapa bibliográfico" en cualquier render, las dos opciones nuevas de divulgación junto con las pedagógicas, y el nuevo subtítulo del resumen. `bash scripts/verify.sh`: 0 fallos.
+
+### Qué quedó a medias
+
+- **No desplegado a producción todavía.** Cambios de solo texto, bajo riesgo, pero pendientes de que Manuel decida si los sube ahora o los agrupa con el siguiente cambio.
+- No se hizo una relectura humana completa; vale la pena antes del congreso, aunque la auditoría automatizada no encontró más restos obsoletos.
+
+### Próximo paso recomendado
+
+1. Manuel decide si despliega ya la Fase D (cambio de bajo riesgo) o espera.
+2. Prueba en frío de Kamila (sigue pendiente, ella reacciona hasta el lunes).
+3. Higiene de siempre: límite de gasto mensual en Anthropic, fijar el alias oficial de Vercel para el QR, generar el QR. O el primer paso de la extensión estratégica (auditoría de defendibilidad) si se prefiere seguir con desarrollo grande.
+
+---
+
+**Registro anterior: 2026-07-18 (Fase C)**
 **Quién:** sesión de Claude Code.
 
 Se avanzó la Fase C (salidas para publicar). Manuel pidió seguir a fondo con el desarrollo mientras Kamila, atrasada, reacciona a la prueba en frío hasta el lunes; así que esta sesión fue de código, no de validación con usuario.
