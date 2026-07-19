@@ -75,3 +75,23 @@ Mismo formato que `lab/decision_log.md`, por consistencia:
 **Razón:** Formatear metadatos ya existentes es determinista y auditable; delegarlo a la IA introduciría el riesgo de que "complete" un volumen o una página que no tiene, contradiciendo el principio de nunca inventar citas. Mantener el marcador `[n]` uniforme evita además tener que resolver la cita en-texto real de cada estilo (autor-fecha en APA, superíndice en ACS) con metadatos incompletos, y es coherente con cómo la MDE y la síntesis ya referencian las fuentes.
 
 **Impacto:** Patrón a mantener para cualquier salida de publicación futura: lo que sea formateo de datos existentes se hace en código, no con la IA; la IA solo redacta prosa y siempre ancla sus afirmaciones a fuentes reales por `[n]`. Si más adelante se integran bases con metadatos completos (por ejemplo vía la colaboración con Bibliotecas UPR), `formatCitation` puede enriquecerse para dar citas completas sin cambiar esta división de responsabilidades.
+
+## [2026-07-18] — El json_schema de Anthropic no soporta minItems/maxItems mayores a 1
+
+**Contexto:** Al disenar el schema de la tarea `auditoria` (`web/api/generate.js`), se queria forzar "exactamente 6 dimensiones" en el array `cobertura` usando `minItems: 6, maxItems: 6`, como mecanismo estructural para evitar que el modelo omitiera dimensiones sin evidencia en vez de declararlas explicitamente.
+
+**Decision:** Se probo primero con una llamada real minima a la API antes de construir el resto de la tarea sobre ese supuesto (siguiendo el plan de implementacion). La API devolvio `400 invalid_request_error`: "For 'array' type, 'minItems' values other than 0 or 1 are not supported". Se quito `minItems`/`maxItems` del schema y se movio la instruccion de "exactamente 6, una por dimension" al texto del prompt; verificado empiricamente que el modelo la respeta de forma consistente en multiples corridas.
+
+**Razon:** Es una limitacion real y no documentada previamente en el repo del `json_schema` de la API de Anthropic para arrays. Descubrirla temprano, con una prueba aislada antes de construir el resto, evito reescribir el schema completo despues.
+
+**Impacto:** Ningun schema en `generate.js` puede usar `minItems`/`maxItems` mayores a 1 para forzar cardinalidad exacta o un rango; hay que instruirlo en el prompt y, si hace falta una garantia dura, validar el conteo en el cliente despues de recibir la respuesta. Documentado tambien en `docs/current-status.md`.
+
+## [2026-07-18] — Una senal de auditoria puede anclarse legitimamente a un resultado propio Y a una fuente bibliografica a la vez
+
+**Contexto:** El schema de la tarea `auditoria` definio `ancla_tipo` como un enum de un solo valor (`fuente_bibliografica`, `ausencia_en_corpus`, `resultado_propio`, `diseno_propio`), y la primera prueba de contrato asumio que una senal anclada a un resultado propio nunca deberia traer numeros de fuentes bibliograficas en el campo `fuentes`. La prueba fallo: el modelo genero una senal legitima que compara el TPC obtenido en un resultado propio (R1) contra el TPC reportado en una fuente real de la literatura ([1]), citando ambos en `ancla_detalle` y referenciando la fuente en `fuentes`.
+
+**Decision:** No se cambio el schema ni el prompt. Se corrigio la prueba: en vez de exigir que `fuentes` este vacio cuando `ancla_tipo` es `resultado_propio`/`diseno_propio`, se valida que CUALQUIER numero de fuente que aparezca en `fuentes` (sin importar el `ancla_tipo`) este dentro del rango valido de referencias aceptadas. Es exactamente el tipo de senal mas valiosa que la auditoria deberia producir: compara lo que el investigador encontro contra lo que ya reporta la literatura curada.
+
+**Razon:** El hallazgo era comportamiento correcto y bien fundamentado del modelo, no una alucinacion ni un defecto de diseno. Cambiar el schema para prohibirlo habria degradado la calidad de la auditoria para evitar un falso positivo de la prueba, no un problema real.
+
+**Impacto:** Documentado para que una sesion futura no reabra esta pregunta ni la trate como un bug. El chequeo de consistencia real que si importa (y que las pruebas si verifican de forma estricta) es que ninguna senal se ancle a un resultado propio cuando `resultadosPropios` esta vacio: eso si se probo como aserción dura y paso limpio.

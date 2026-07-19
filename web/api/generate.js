@@ -211,6 +211,57 @@ const SCHEMAS = {
         }
       }
     }
+  },
+  auditoria: {
+    type: "object",
+    additionalProperties: false,
+    required: ["cobertura", "senales"],
+    properties: {
+      // Una entrada por cada una de las 6 dimensiones, siempre (verificado en el
+      // cliente, no se puede forzar "exactamente 6" via minItems en este schema:
+      // la API solo acepta minItems/maxItems de 0 o 1 en arrays).
+      cobertura: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["dimension", "estado", "nota"],
+          properties: {
+            dimension: {
+              type: "string",
+              enum: ["teorica", "metodologica", "etica", "novedad", "reproducibilidad", "alineacion_pregunta_evidencia"]
+            },
+            estado: { type: "string", enum: ["senales_encontradas", "sin_evidencia_suficiente"] },
+            nota: { type: "string" }
+          }
+        }
+      },
+      // Sin cuota minima ni maxima: puede haber cero senales en total.
+      senales: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["dimension", "senal", "por_que_importa", "ancla_tipo", "ancla_detalle", "fuentes", "severidad"],
+          properties: {
+            dimension: {
+              type: "string",
+              enum: ["teorica", "metodologica", "etica", "novedad", "reproducibilidad", "alineacion_pregunta_evidencia"]
+            },
+            senal: { type: "string" },
+            por_que_importa: { type: "string" },
+            ancla_tipo: {
+              type: "string",
+              enum: ["fuente_bibliografica", "ausencia_en_corpus", "resultado_propio", "diseno_propio"]
+            },
+            ancla_detalle: { type: "string" },
+            // Numeros (1-based) de referencias aceptadas; vacio si el ancla es un resultado propio.
+            fuentes: { type: "array", items: { type: "integer" } },
+            severidad: { type: "string", enum: ["alta", "media", "baja"] }
+          }
+        }
+      }
+    }
   }
 };
 
@@ -407,6 +458,65 @@ function buildBorradores(p) {
   return { system, user, schemaKey: "borradores", unwrap: (r) => r, maxTokens: 3200 };
 }
 
+// Audita la defendibilidad del trabajo: identifica huecos teoricos, metodologicos,
+// eticos, de novedad, de reproducibilidad y de alineacion pregunta-evidencia. Es la
+// tarea de mayor riesgo de alucinacion de la app: cada senal debe anclarse a una
+// fuente real, a una ausencia declarada del corpus, o a un elemento concreto de los
+// resultados/diseno propio del investigador. Nunca a una intuicion del modelo.
+// Ver docs/vision-app.md, seccion "Extension estrategica", para el principio completo.
+function buildAuditoria(p) {
+  const idea = p.idea || {};
+  const preg = p.pregunta || {};
+  const refs = Array.isArray(p.referencias) ? p.referencias : [];
+  const lista = refs
+    .map((r, i) => {
+      const n = i + 1;
+      return (
+        `[${n}] ${s(r.titulo)} (${s(r.autores)}, ${s(r.anio)})\n` +
+        `    Resumen: ${s(r.resumen)}\n` +
+        `    Aporte identificado: ${s(r.justificacion)}`
+      );
+    })
+    .join("\n");
+  const sint = Array.isArray(p.sintesis) ? p.sintesis : [];
+  const sintTxt = sint
+    .map((h) => `- (${s(h.tipo)}) ${s(h.hallazgo)} [fuentes: ${(Array.isArray(h.fuentes) ? h.fuentes : []).join(", ")}]`)
+    .join("\n");
+  const mde = Array.isArray(p.mde) ? p.mde : [];
+  const mdeTxt = mde.map((d) => `- ${s(d.dimension)}: ${s(d.criterio_adoptado)}`).join("\n");
+  const propios = Array.isArray(p.resultadosPropios) ? p.resultadosPropios : [];
+  const propiosTxt = propios
+    .map((r, i) => {
+      const n = i + 1;
+      return (
+        `(R${n}) ${s(r.titulo)}\n` +
+        `    Que midio: ${s(r.que_midio)}\n` +
+        `    Metodo: ${s(r.metodo)}\n` +
+        `    Muestra/alcance: ${s(r.muestra_alcance)}\n` +
+        `    Hallazgo: ${s(r.hallazgo)}\n` +
+        `    Limitaciones reconocidas por el investigador: ${s(r.limitaciones)}`
+      );
+    })
+    .join("\n");
+
+  const system =
+    "Eres un auditor de defendibilidad de un trabajo de investigacion. Identificas posibles huecos que un revisor de una revista cientifica podria usar para atacar el trabajo: huecos teoricos, metodologicos, eticos, de novedad, de reproducibilidad, y de alineacion entre la pregunta de investigacion y la evidencia disponible. Esta es la tarea de mayor riesgo de alucinacion de toda la aplicacion: es facil generar criticas que suenan plausibles pero que no estan sostenidas por nada real, y tienes prohibido hacerlo. Cada senal que reportes debe anclarse, sin excepcion, a una de estas cuatro cosas: (1) una fuente bibliografica concreta de la lista provista, citada por su numero; (2) una ausencia declarada explicitamente en el corpus provisto; (3) un elemento especifico del diseno o metodo que el investigador declaro en sus resultados propios; o (4) un elemento especifico de los hallazgos que el investigador declaro en sus resultados propios. Nunca anclas una senal a una intuicion general, a tu conocimiento externo sobre el tema, ni a lo que suele pasar en investigaciones similares. Si una dimension no tiene una base real en lo que se te provee, no inventes una senal para llenarla: es obligatorio declarar esa dimension como sin_evidencia_suficiente con una nota breve de que le falta a la evidencia, en vez de fabricar una critica. No hay cuota minima ni maxima de senales por dimension: puede haber cero, una o varias, segun lo que la evidencia realmente sostenga; nunca fuerces senales en las 6 dimensiones solo para completar el formulario. Las senales de la dimension etica se formulan siempre como una pregunta abierta que el investigador deberia considerar, nunca como una acusacion o un veredicto de que algo esta mal. No uses guiones largos en ningun texto. Respondes unicamente con datos estructurados.";
+
+  const user =
+    `Tema: ${s(idea.tema)}\n` +
+    `Pregunta principal: ${s(preg.pregunta_principal)}\n` +
+    `Objetivo general: ${s(preg.objetivo_general)}\n\n` +
+    `Fuentes aceptadas (numeradas; usa estos numeros en 'fuentes' cuando ancles una senal a literatura):\n${lista}\n\n` +
+    (sintTxt ? `Sintesis de evidencia ya generada:\n${sintTxt}\n\n` : "") +
+    (mdeTxt ? `Criterios de la Matriz de Decision ya adoptados:\n${mdeTxt}\n\n` : "") +
+    (propiosTxt
+      ? `Resultados propios declarados por el investigador (numerados R1, R2...; referencia este numero dentro de 'ancla_detalle' cuando ancles una senal a ellos, nunca en 'fuentes'):\n${propiosTxt}\n\n`
+      : "El investigador no ha declarado resultados propios todavia. Sin ellos es normal y esperado que la dimension de reproducibilidad, y buena parte de la metodologica y la etica, queden como sin_evidencia_suficiente: no inventes un diseno o resultado propio que no se te dio.\n\n") +
+    "Evalua estas 6 dimensiones, exactamente una entrada de 'cobertura' por cada una: 'teorica' (huecos o tensiones conceptuales que la literatura provista no resuelve), 'metodologica' (decisiones de metodo debiles o no justificadas por la evidencia), 'etica' (preguntas a considerar sobre consentimiento, manejo de datos, conflicto de interes u otro asunto etico, solo si hay una base concreta en lo provisto para plantearla), 'novedad' (que tan distinto es el aporte de lo que ya reporta el corpus aceptado), 'reproducibilidad' (que tan replicable es el diseno o metodo segun lo declarado, o que falta declarar), y 'alineacion_pregunta_evidencia' (donde la pregunta principal se desvia de lo que la evidencia curada y los resultados propios realmente sostienen). Para cada senal en 'senales': 'senal' describe el hueco concreto en 1 a 2 oraciones; 'por_que_importa' explica en 1 oracion por que un revisor podria atacar esto y como podria dificultar la publicacion; 'ancla_tipo' indica el tipo exacto de ancla; 'ancla_detalle' cita textual o casi textualmente el elemento concreto (el numero de fuente, la ausencia especifica, o el resultado propio referenciado por su numero R); 'fuentes' lista los numeros de fuentes bibliograficas involucradas (vacio si el ancla es un resultado propio o diseno propio); 'severidad' es alta, media o baja segun que tan probable es que un revisor la use para rechazar o pedir revision mayor. Todo en espanol, especifico a este proyecto, nunca generico.";
+
+  return { system, user, schemaKey: "auditoria", unwrap: (r) => r, maxTokens: 5000 };
+}
+
 const BUILDERS = {
   friccion: buildFriccion,
   pregunta: buildPregunta,
@@ -417,7 +527,8 @@ const BUILDERS = {
   sintesis: buildSintesis,
   reenfoque: buildReenfoque,
   extraerReferencia: buildExtraerReferencia,
-  borradores: buildBorradores
+  borradores: buildBorradores,
+  auditoria: buildAuditoria
 };
 
 export default async function handler(req, res) {

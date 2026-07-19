@@ -99,4 +99,13 @@ Una auditoría de huecos es justo donde un modelo de lenguaje puede lucirse o pe
 
 ### Estado
 
-Dirección registrada, no construida. Primer paso concreto cuando se decida abordarla: el insumo de "tus propios resultados" y una tarea de auditoría de defendibilidad anclada a evidencia (reutilizando el patrón de `generate.js` y el principio de "la IA propone, el investigador decide"). Ver `lab/roadmap.md`.
+**Primer paso construido y verificado, pendiente de aprobación visual y despliegue (2026-07-18).** A pedido de Manuel (para poder mencionarlo en el póster como trabajo en curso), se construyeron las dos piezas registradas como primer paso:
+
+- **"Tus resultados" (`state.resultadosPropios[]`):** paso nuevo, 100% manual (sin botón de IA, a propósito: no hay texto externo verificable del que la IA pueda partir sin arriesgarse a inventar datos empíricos que el investigador nunca midió). Campos: título, qué midió, método, muestra/alcance, hallazgo, limitaciones reconocidas.
+- **"Auditoría de defendibilidad" (tarea `auditoria` en `generate.js`, la número 11):** identifica señales en 6 dimensiones (teórica, metodológica, ética, novedad, reproducibilidad, alineación pregunta-evidencia). Cada señal se ancla a `ancla_tipo`: una fuente bibliográfica real, una ausencia declarada del corpus, o un resultado/diseño propio declarado por el investigador, nunca a una intuición del modelo. El schema fuerza una entrada de `cobertura` por cada una de las 6 dimensiones (declarando `sin_evidencia_suficiente` con su razón cuando no hay base real), sin cuota de señales.
+
+**Verificación, con foco especial en no alucinar (esta es la tarea de mayor riesgo de la app):** contrato probado contra la API real en tres escenarios. (1) Evidencia rica (4 fuentes + 2 resultados propios): produjo 7 señales bien ancladas, incluyendo una que cruza correctamente un resultado propio con una fuente bibliográfica real. (2) Evidencia mínima **sin** resultados propios: cero señales ancladas a `resultado_propio`/`diseno_propio` (aserción dura, la prueba habría fallado si el modelo hubiera inventado una), y las señales que sí aparecieron estaban ancladas a `ausencia_en_corpus` con citas concretas del contenido real (aunque pobre) de las fuentes. (3) Misma evidencia mínima **con** resultados propios: sí aparecieron señales ancladas a los resultados propios, confirmando que el insumo nuevo realmente enriquece la auditoría. Frontend verificado con 22 chequeos en un contexto `vm` simulado.
+
+**No desplegado.** Manuel tiene una vista previa visual con contenido real (artefacto publicado en la sesión) para revisar antes de decidir el despliegue. El póster (`poster/src/build_poster.js`) queda fuera de esta tarea, a abordar después con su propia verificación visual.
+
+Lo que sigue fuera de este primer paso: el bucle longitudinal (reexaminar la pregunta a medida que crecen corpus y resultados) y ampliar la auditoría más allá de este primer corte. Ver `lab/roadmap.md`.

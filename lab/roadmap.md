@@ -24,7 +24,7 @@ EugenIA Lab traduce evidencia bibliométrica curada en decisiones de investigaci
 - [~] Fase C: salidas orientadas a publicación. La tabla comparativa, los borradores citados por sección (justificación, métodos, comparación, discusión) y los estilos de cita estándar (APA / ACS / Vancouver) ya están implementados, verificados y **en producción (2026-07-18)**. Falta decidir si se quieren estilos de cita más completos (limitados hoy por los metadatos disponibles) y una salida específica por formato de divulgación.
 - [~] Fase D: pulido de lenguaje de investigador en toda la app. Primera pasada hecha (2026-07-18): corregido un desfase real (restos de "mapa bibliográfico"/"perspectivas" en el paso ya renombrado a "Componentes del trabajo"), ampliada la lista de formatos de divulgación con opciones profesionales, y ajustado el subtítulo del resumen final. El resto de los pasos ya estaba en tono adecuado. Vale una relectura humana antes del congreso.
 - [ ] Semestre de Kamila (CIFI 4996, ago-dic 2026): integrar la extracción estructurada de variables experimentales cuantitativas al pipeline de EugenIA (meta EugenIA v2.0). Ver `reference/Plan_Trabajo_Kamila_Ago-Dic2026.pdf`.
-- [ ] Primer paso de la extensión estratégica: insumo de "tus propios resultados" y una tarea de auditoría de defendibilidad anclada a evidencia (ver Líneas futuras).
+- [~] Primer paso de la extensión estratégica: insumo de "tus propios resultados" y una tarea de auditoría de defendibilidad anclada a evidencia. Construido y verificado el 2026-07-18, pendiente de aprobación visual de Manuel y despliegue (ver Líneas futuras).
 
 ### Largo plazo (1–3 años)
 
@@ -48,7 +48,7 @@ EugenIA Lab traduce evidencia bibliométrica curada en decisiones de investigaci
 
 ## Líneas futuras o en exploración
 
-- **Compañero de defendibilidad (dirección estratégica, 2026-07-13).** Extender la app más allá de encontrar evidencia hacia mantener viva la validez de la pregunta y auditar la defendibilidad del trabajo. Tres piezas nuevas: (1) los resultados propios del investigador como insumo de primera clase; (2) una auditoría por dimensiones (teórica, metodológica, ética, novedad, reproducibilidad, alineación pregunta-evidencia), con cada señal anclada a evidencia real o a una ausencia declarada, nunca inventada, y lo ético como preguntas a considerar y no veredictos; (3) el bucle longitudinal que reexamina la pregunta a medida que crecen corpus y resultados. Detalle en `docs/vision-app.md`.
+- **Compañero de defendibilidad (dirección estratégica, 2026-07-13).** Extender la app más allá de encontrar evidencia hacia mantener viva la validez de la pregunta y auditar la defendibilidad del trabajo. **Primer paso construido y verificado el 2026-07-18, pendiente de aprobación visual y despliegue:** (1) los resultados propios del investigador como insumo de primera clase (paso "Tus resultados", 100% manual); (2) una auditoría por dimensiones (teórica, metodológica, ética, novedad, reproducibilidad, alineación pregunta-evidencia), con cada señal anclada a evidencia real o a una ausencia declarada, nunca inventada, y lo ético como preguntas a considerar y no veredictos, verificado con pruebas anti-alucinación contra la API real. Falta: (3) el bucle longitudinal que reexamina la pregunta a medida que crecen corpus y resultados (fuera de alcance de este primer paso). Detalle en `docs/vision-app.md` y `docs/current-status.md`.
 - Acceso institucional a bases pagadas vía Bibliotecas UPR (gestión, no código).
 
 ---

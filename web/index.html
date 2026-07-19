@@ -332,6 +332,8 @@ const STAGES = [
   {key:"bibliografia", label:"Bibliografía viva", short:"Biblio"},
   {key:"mde", label:"Matriz de Decisión", short:"Matriz"},
   {key:"sintesis", label:"Síntesis de evidencia", short:"Síntesis"},
+  {key:"resultados", label:"Tus resultados", short:"Resultados"},
+  {key:"auditoria", label:"Auditoría de defendibilidad", short:"Auditoría"},
   {key:"notas", label:"Notas de lectura", short:"Notas"},
   {key:"divulgacion", label:"Divulgación", short:"Divulgar"},
   {key:"reflexion", label:"Reflexión", short:"Reflexión"}
@@ -382,6 +384,8 @@ function defaultProject(){
     reenfoque: null,
     mde: [],
     sintesis: [],
+    resultadosPropios: [],
+    auditoria: null,
     notas: [],
     borradores: null,
     citaEstilo: "APA",
@@ -464,7 +468,7 @@ function goToStep(i){
 }
 function workflowStages(){
   if(state.mode !== "investigador") return STAGES.map((s,i)=>i);
-  const keys = ["idea","mapa","bibliografia","mde","sintesis","notas","divulgacion"];
+  const keys = ["idea","mapa","bibliografia","mde","sintesis","resultados","auditoria","notas","divulgacion"];
   return keys.map(k=>STAGES.findIndex(s=>s.key===k));
 }
 function nextStep(){
@@ -644,6 +648,8 @@ function renderStep(i){
     case "bibliografia": return renderBibliografia();
     case "mde": return renderMDE();
     case "sintesis": return renderSintesis();
+    case "resultados": return renderResultados();
+    case "auditoria": return renderAuditoria();
     case "notas": return renderNotas();
     case "divulgacion": return renderDivulgacion();
     case "reflexion": return renderReflexion();
@@ -1418,6 +1424,160 @@ async function generarSintesis(){
   render();
 }
 
+/* ============ TUS RESULTADOS ============ */
+// Insumo de primera clase para la auditoria de defendibilidad: lo que el propio
+// investigador ya midio/encontro, distinto de la literatura de otros. 100% manual,
+// sin boton de IA: a diferencia de una ficha de lectura (que resume un abstract real
+// y externo), aqui no hay ningun texto externo verificable del que la IA pueda
+// partir sin arriesgarse a inventar datos empiricos que el investigador nunca midio.
+function renderResultados(){
+  const items = state.resultadosPropios || [];
+  return `
+  <div class="card tint">
+    <p style="margin:0;">Declara aqui lo que tu mismo ya mediste o encontraste en tu propia investigacion, no lo que dice la literatura. Este insumo alimenta la auditoria de defendibilidad: entre mas completo, mas puede anclarse en tus propios datos en vez de solo en la literatura.</p>
+  </div>
+  <div class="card">
+    <label>Titulo breve</label>
+    <input type="text" id="res_titulo" placeholder="Ej. Rendimiento de extraccion con etanol 50%">
+    <label>¿Qué mediste?</label>
+    <textarea id="res_que_midio" placeholder="La variable o fenomeno que mediste"></textarea>
+    <label>Método</label>
+    <textarea id="res_metodo" placeholder="Como lo mediste, brevemente"></textarea>
+    <label>Muestra o alcance</label>
+    <textarea id="res_muestra_alcance" placeholder="Tamaño de muestra, repeticiones, poblacion, alcance del experimento"></textarea>
+    <label>Hallazgo</label>
+    <textarea id="res_hallazgo" placeholder="Que encontraste, con cifras si las tienes"></textarea>
+    <label>Limitaciones que ya reconoces</label>
+    <textarea id="res_limitaciones" placeholder="Opcional, pero fortalece la auditoria: que le falta a este resultado"></textarea>
+    <button class="btn btn-primary" id="btnAddResultado" style="width:100%;margin-top:12px;">Guardar resultado</button>
+  </div>
+  <h3 style="font-size:15px;margin:6px 0 10px 0;">Mis resultados propios</h3>
+  ${items.length === 0 ? `<div class="empty">Aún no has declarado resultados propios.</div>` : items.map(r=>`
+    <div class="card tint">
+      <h3 style="font-size:15px;">${escapeHtml(r.titulo)}</h3>
+      ${r.que_midio ? `<p style="font-size:13.5px;margin:6px 0 0 0;"><b>Qué midió:</b> ${escapeHtml(r.que_midio)}</p>` : ""}
+      ${r.metodo ? `<p style="font-size:13.5px;margin:6px 0 0 0;"><b>Método:</b> ${escapeHtml(r.metodo)}</p>` : ""}
+      ${r.muestra_alcance ? `<p style="font-size:13.5px;margin:6px 0 0 0;"><b>Muestra/alcance:</b> ${escapeHtml(r.muestra_alcance)}</p>` : ""}
+      ${r.hallazgo ? `<p style="font-size:13.5px;margin:6px 0 0 0;"><b>Hallazgo:</b> ${escapeHtml(r.hallazgo)}</p>` : ""}
+      ${r.limitaciones ? `<p style="font-size:13.5px;margin:6px 0 0 0;"><b>Limitaciones:</b> ${escapeHtml(r.limitaciones)}</p>` : ""}
+    </div>
+  `).join("")}`;
+}
+
+function attachResultadosHandlers(){
+  const btn = document.getElementById("btnAddResultado");
+  if(btn) btn.onclick = () => {
+    const titulo = document.getElementById("res_titulo").value.trim();
+    if(!titulo){ alert("Escribe al menos un titulo breve."); return; }
+    state.resultadosPropios.push({
+      titulo,
+      que_midio: document.getElementById("res_que_midio").value,
+      metodo: document.getElementById("res_metodo").value,
+      muestra_alcance: document.getElementById("res_muestra_alcance").value,
+      hallazgo: document.getElementById("res_hallazgo").value,
+      limitaciones: document.getElementById("res_limitaciones").value
+    });
+    saveState(); render();
+  };
+}
+
+/* ============ AUDITORÍA DE DEFENDIBILIDAD ============ */
+// Primer paso construido de la extension estrategica "companero de defendibilidad"
+// (ver docs/vision-app.md). Tarea de mayor riesgo de alucinacion de la app: cada
+// senal que devuelve el modelo debe anclarse a una fuente real, a una ausencia
+// declarada del corpus, o a un elemento concreto de los resultados/diseno propio.
+const DIMENSIONES_AUDITORIA = {
+  teorica: "Teórica",
+  metodologica: "Metodológica",
+  etica: "Ética",
+  novedad: "Novedad",
+  reproducibilidad: "Reproducibilidad",
+  alineacion_pregunta_evidencia: "Alineación pregunta-evidencia"
+};
+
+function renderAuditoria(){
+  const aceptadas = state.bibliografia.filter(r=>r.estado==="aceptada");
+  const propios = state.resultadosPropios || [];
+  const aud = state.auditoria;
+  if(aceptadas.length < 2){
+    return `<div class="card tint"><p style="margin:0;">La auditoría de defendibilidad necesita al menos dos referencias aceptadas para comparar tu trabajo contra la literatura. Vuelve a <b>Bibliografía viva</b> para ampliar el corpus.</p></div>`;
+  }
+  const sinPropios = propios.length === 0
+    ? `<p class="hint" style="margin:0 0 12px 0;">Aún no has declarado resultados propios. La auditoría puede correr solo con literatura, pero será más limitada en reproducibilidad y alineación pregunta-evidencia. Vuelve a <b>Tus resultados</b> para enriquecerla.</p>`
+    : "";
+  const intro = `
+    <div class="card">
+      <p style="margin:0 0 10px 0;">La auditoría identifica posibles huecos que un revisor podría usar para atacar tu trabajo, en 6 dimensiones: teórica, metodológica, ética, novedad, reproducibilidad y alineación entre tu pregunta y la evidencia. Cada señal se ancla a una fuente real, a una ausencia del corpus, o a un elemento concreto de tus resultados propios.</p>
+      ${sinPropios}
+      <button class="btn btn-accent" id="btnGenerarAuditoria" style="width:100%;">${aud ? "Regenerar auditoría" : "Generar auditoría de defendibilidad"}</button>
+    </div>`;
+  if(!aud) return intro;
+
+  const cobertura = Array.isArray(aud.cobertura) ? aud.cobertura : [];
+  const chips = cobertura.map(c=>{
+    const nombre = DIMENSIONES_AUDITORIA[c.dimension] || c.dimension;
+    const cls = c.estado === "senales_encontradas" ? "chip" : "chip pending";
+    return `<span class="${cls}" title="${escapeAttr(c.nota||"")}">${escapeHtml(nombre)}</span>`;
+  }).join("");
+
+  const senales = Array.isArray(aud.senales) ? aud.senales : [];
+  const porDimension = {};
+  senales.forEach(sn=>{ (porDimension[sn.dimension] = porDimension[sn.dimension] || []).push(sn); });
+
+  const grupos = Object.keys(DIMENSIONES_AUDITORIA).filter(d=>porDimension[d] && porDimension[d].length).map(d=>{
+    const tarjetas = porDimension[d].map(sn=>{
+      const sevClase = sn.severidad === "alta" ? "contradiccion" : (sn.severidad === "baja" ? "brecha" : "");
+      const prefijo = d === "etica" ? "Pregunta a considerar: " : "";
+      const anclaLit = sn.ancla_tipo === "fuente_bibliografica" || sn.ancla_tipo === "ausencia_en_corpus";
+      return `
+        <div class="card finding ${sevClase}">
+          <div class="finding-label">Severidad ${escapeHtml(sn.severidad)}</div>
+          <h3 style="font-size:15px;">${prefijo}${escapeHtml(sn.senal)}</h3>
+          <p style="font-size:13.5px;"><b>Por qué importa:</b> ${escapeHtml(sn.por_que_importa)}</p>
+          <p style="font-size:13px;color:var(--ink-soft);">${escapeHtml(sn.ancla_detalle)}</p>
+          ${anclaLit ? `<div>${renderSourceLinks(sn.fuentes, aceptadas) || ""}</div>` : ""}
+        </div>`;
+    }).join("");
+    return `<h3 style="font-size:15px;margin:14px 0 6px 0;">${escapeHtml(DIMENSIONES_AUDITORIA[d])}</h3>${tarjetas}`;
+  }).join("");
+
+  return `
+    <div class="ai-badge">${AI_ICON} Auditoría generada por EugenIA</div>
+    <div class="card" style="padding:14px;">
+      <span class="hint" style="display:block;margin-bottom:8px;">Cobertura por dimensión (pasa el cursor para ver la nota):</span>
+      ${chips}
+    </div>
+    ${grupos || `<div class="empty">No se encontraron señales con base suficiente en la evidencia provista.</div>`}
+    ${intro}`;
+}
+
+function attachAuditoriaHandlers(){
+  const btn = document.getElementById("btnGenerarAuditoria");
+  if(btn) btn.onclick = generarAuditoria;
+}
+
+async function generarAuditoria(){
+  const aceptadas = state.bibliografia.filter(r=>r.estado==="aceptada");
+  if(aceptadas.length < 2) return;
+  const referencias = aceptadas.map(r=>({
+    titulo:r.titulo, autores:r.autores, anio:r.anio,
+    resumen:r.resumen||"", justificacion:r.justificacion||""
+  }));
+  const result = await callAgent("auditoria", {
+    idea: state.idea,
+    pregunta: state.pregunta,
+    referencias,
+    sintesis: state.sintesis || [],
+    mde: state.mde || [],
+    resultadosPropios: state.resultadosPropios || []
+  });
+  if(result){
+    state.auditoria = result;
+    saveState();
+  }
+  render();
+}
+
 /* ============ STEP 7: NOTAS DE LECTURA ============ */
 // Nota de diseño (ver CLAUDE.md y docs/decisions.md 2026-07-12): este paso sigue
 // siendo manual por principio (la curación crítica no se delega a un atajo
@@ -1592,6 +1752,8 @@ function attachStepHandlers(i){
     bibliografia: attachBibliografiaHandlers,
     mde: attachMdeHandlers,
     sintesis: attachSintesisHandlers,
+    resultados: attachResultadosHandlers,
+    auditoria: attachAuditoriaHandlers,
     notas: attachNotasHandlers,
     divulgacion: attachDivulgacionHandlers,
     reflexion: attachReflexionHandlers
@@ -1636,6 +1798,12 @@ function showSummary(){
         <div class="divider"></div>
         <h3 style="font-size:15px;">Síntesis de evidencia</h3>
         <p>${(p.sintesis||[]).length} hallazgos entre consensos, contradicciones y brechas</p>
+        <div class="divider"></div>
+        <h3 style="font-size:15px;">Tus resultados</h3>
+        <p>${(p.resultadosPropios||[]).length} resultado(s) propios declarados</p>
+        <div class="divider"></div>
+        <h3 style="font-size:15px;">Auditoría de defendibilidad</h3>
+        <p>${p.auditoria ? `${(p.auditoria.senales||[]).length} señales en ${(p.auditoria.cobertura||[]).filter(c=>c.estado==='senales_encontradas').length} de 6 dimensiones` : "Aún no generada (disponible en el informe de evidencia)"}</p>
         <div class="divider"></div>
         <h3 style="font-size:15px;">Borradores para publicar</h3>
         <p>${p.borradores ? "Generados: justificación, métodos, comparación y discusión, con tabla comparativa" : "Aún no generados (disponibles en el informe de evidencia)"}</p>
@@ -1762,6 +1930,41 @@ function reportSection(title, body){
   return `<section class="card"><h2 style="font-size:20px;">${title}</h2>${body}</section>`;
 }
 
+// Bloques de "Tus resultados" y "Auditoría de defendibilidad" dentro del informe.
+// A diferencia de los borradores, la auditoría ya se genera y persiste en su propio
+// paso (patrón sintesis/mde), así que aquí solo se lee state.auditoria de forma
+// síncrona, sin estado de carga propio.
+function renderResultadosReport(){
+  const items = state.resultadosPropios || [];
+  if(!items.length) return `<p>No se han declarado resultados propios.</p>`;
+  return `<ul style="padding-left:22px;">${items.map(r=>
+    `<li style="margin-bottom:10px;"><b>${escapeHtml(r.titulo)}</b>${r.hallazgo ? `: ${escapeHtml(r.hallazgo)}` : ""}${r.limitaciones ? ` <span class="hint">(Limitaciones: ${escapeHtml(r.limitaciones)})</span>` : ""}</li>`
+  ).join("")}</ul>`;
+}
+
+function renderAuditoriaReport(){
+  const aud = state.auditoria;
+  if(!aud) return `<p>No se ha generado una auditoría de defendibilidad.</p>`;
+  const refs = state.bibliografia.filter(r=>r.estado==="aceptada");
+  const cobertura = Array.isArray(aud.cobertura) ? aud.cobertura : [];
+  const chips = cobertura.map(c=>{
+    const nombre = DIMENSIONES_AUDITORIA[c.dimension] || c.dimension;
+    const cls = c.estado === "senales_encontradas" ? "chip" : "chip pending";
+    return `<span class="${cls}" title="${escapeAttr(c.nota||"")}">${escapeHtml(nombre)}</span>`;
+  }).join("");
+  const senales = Array.isArray(aud.senales) ? aud.senales : [];
+  const filas = senales.map(sn=>{
+    const prefijo = sn.dimension === "etica" ? "Pregunta a considerar: " : "";
+    return `<div class="finding ${sn.severidad==='alta'?'contradiccion':(sn.severidad==='baja'?'brecha':'')}" style="padding:12px 14px;margin:10px 0;">
+      <div class="finding-label">${escapeHtml(DIMENSIONES_AUDITORIA[sn.dimension]||sn.dimension)} · severidad ${escapeHtml(sn.severidad)}</div>
+      <p><b>${prefijo}${escapeHtml(sn.senal)}</b></p>
+      <p>${escapeHtml(sn.por_que_importa)}</p>
+      <p class="hint">${escapeHtml(sn.ancla_detalle)}${(sn.fuentes&&sn.fuentes.length)?` · Fuentes: ${sn.fuentes.map(n=>`[${n}]`).join(", ")}`:""}</p>
+    </div>`;
+  }).join("") || `<p>No se encontraron señales con base suficiente en la evidencia provista.</p>`;
+  return `<div style="margin-bottom:10px;">${chips}</div>${filas}`;
+}
+
 function showEvidenceReport(){
   const refs = state.bibliografia.filter(r=>r.estado==="aceptada");
   const synthesis = (state.sintesis||[]).map(h=>`
@@ -1791,6 +1994,8 @@ function showEvidenceReport(){
     ${reportSection("Síntesis de evidencia", synthesis)}
     ${reportSection("Matriz de Decisión", matrixHtml)}
     ${renderBorradoresReport()}
+    ${reportSection("Tus resultados", renderResultadosReport())}
+    ${reportSection("Auditoría de defendibilidad", renderAuditoriaReport())}
     ${reportSection("Referencias aceptadas", `${estiloSelector}<ul style="list-style:none;padding-left:0;margin-top:12px;">${bibliography}</ul>`)}
     <p class="hint">Análisis generado a partir de títulos y resúmenes disponibles. Debe verificarse contra los textos completos antes de publicación o toma de decisiones definitiva.</p>
   </main>`;
@@ -1826,6 +2031,21 @@ function downloadEvidenceReport(){
       lines.push("", "Tabla comparativa de fuentes");
       b.tabla_comparativa.forEach(row=>lines.push(`[${row.fuente}] Enfoque: ${row.enfoque||"-"} | Hallazgo: ${row.hallazgo_principal||"-"} | Limitación: ${row.limitacion||"-"}`));
     }
+  }
+  const propios = state.resultadosPropios || [];
+  lines.push("", "TUS RESULTADOS");
+  if(propios.length){
+    propios.forEach(r=>lines.push(`\n${r.titulo}${r.hallazgo?`\nHallazgo: ${r.hallazgo}`:""}${r.limitaciones?`\nLimitaciones: ${r.limitaciones}`:""}`));
+  } else {
+    lines.push("No se han declarado resultados propios.");
+  }
+  const aud = state.auditoria;
+  lines.push("", "AUDITORÍA DE DEFENDIBILIDAD");
+  if(aud){
+    (aud.cobertura||[]).forEach(c=>lines.push(`${DIMENSIONES_AUDITORIA[c.dimension]||c.dimension}: ${c.estado} (${c.nota})`));
+    (aud.senales||[]).forEach(sn=>lines.push(`\n[${DIMENSIONES_AUDITORIA[sn.dimension]||sn.dimension} | severidad ${sn.severidad}] ${sn.dimension==='etica'?'Pregunta a considerar: ':''}${sn.senal}\nPor qué importa: ${sn.por_que_importa}\nAncla: ${sn.ancla_detalle}${(sn.fuentes&&sn.fuentes.length)?` | Fuentes: ${sn.fuentes.map(n=>`[${n}]`).join(", ")}`:""}`));
+  } else {
+    lines.push("No se ha generado una auditoría de defendibilidad.");
   }
   const estilo = ESTILOS_CITA.includes(state.citaEstilo) ? state.citaEstilo : "APA";
   lines.push("", `REFERENCIAS (${estilo})`);

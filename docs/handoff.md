@@ -12,7 +12,39 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 
 ## Última entrega
 
-**Fecha:** 2026-07-18 (continuación: higiene operativa)
+**Fecha:** 2026-07-18 (cierre de sesión larga: primer paso del "compañero de defendibilidad")
+**Quién:** sesión de Claude Code.
+
+Última pieza de una sesión larga. Manuel confirmó que quería seguir hasta terminar el primer paso de la extensión estratégica registrada el 13 de julio, para poder mencionarla en el póster como trabajo en curso, y luego cerrar la sesión y apagar la máquina.
+
+### Qué se hizo
+
+Se usó modo plan explícitamente (un agente Plan dedicado diseñó la implementación antes de codificar, plan guardado en `C:\Users\manue\.claude\plans\temporal-prancing-anchor.md`) dado que esta es la tarea de mayor riesgo de alucinación de toda la app. Dos piezas construidas:
+
+1. **Paso "Tus resultados"** (`state.resultadosPropios[]`): formulario 100% manual, sin IA en la escritura. Campos: título, qué midió, método, muestra/alcance, hallazgo, limitaciones.
+2. **Paso "Auditoría de defendibilidad"** (tarea `auditoria` en `generate.js`, la número 11): 6 dimensiones (teórica, metodológica, ética, novedad, reproducibilidad, alineación pregunta-evidencia), cada señal anclada a una fuente real, una ausencia declarada del corpus, o un resultado/diseño propio, nunca a una intuición del modelo. El schema fuerza pronunciarse sobre las 6 dimensiones (con razón explícita cuando no hay evidencia), sin forzar una cuota de señales.
+
+Detalle técnico completo, incluyendo dos hallazgos reales durante la verificación (limitación de `minItems`/`maxItems` en la API, y un `max_tokens` insuficiente detectado por la propia prueba), en `docs/current-status.md` y `docs/decisions.md` (ambos 2026-07-18).
+
+### Verificación
+
+La más rigurosa de la sesión, dado el riesgo de la tarea: contrato probado contra la API real en 3 escenarios (evidencia rica, evidencia mínima sin resultados propios, evidencia mínima con resultados propios), con una **aserción dura de no-alucinación**: cuando no se proveen resultados propios, ninguna señal puede anclarse a ellos, verificado automáticamente y sin excepciones. Un chequeo de consistencia estructural (cobertura vs. señales) también pasó limpio en las 3 corridas. Frontend verificado con 22 chequeos en un contexto `vm` simulado. `node --check` y `bash scripts/verify.sh`: 0 fallos.
+
+### Qué quedó a medias
+
+- **No desplegado a producción.** Se publicó una vista previa visual (artefacto, con contenido real de la corrida de verificación) para que Manuel la revise cuando pueda; el despliegue queda pendiente de su aprobación.
+- Fase D (pulido de lenguaje, de antes en esta misma sesión) tampoco se desplegó; se puede agrupar con este cambio.
+- El póster no se tocó (decisión explícita de Manuel, para después con su propia verificación visual).
+
+### Próximo paso recomendado
+
+1. Manuel revisa la vista previa y decide si se despliega (junto con Fase D).
+2. Prueba en frío de Kamila (sigue siendo el hito más importante, hasta el lunes).
+3. Mencionar la auditoría en el póster como trabajo en curso, una vez aprobada.
+
+---
+
+**Registro anterior: 2026-07-18 (continuación: higiene operativa)**
 **Quién:** sesión de Claude Code.
 
 Tras Fase D, Manuel pidió continuar con la higiene operativa que se había ofrecido como opción antes. Dos de los tres pendientes de siempre quedaron cerrados:

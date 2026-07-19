@@ -2,18 +2,26 @@
 
 Agenda y preparación para la próxima sesión de trabajo.
 
-## Arranque recomendado (actualizado 2026-07-18, cierre de sesión)
+## Arranque recomendado (actualizado 2026-07-18, cierre de sesión larga)
 
-**En la sesión del 2026-07-18 se avanzó y desplegó la Fase C (salidas para publicar):** el informe de evidencia ahora genera borradores de párrafo citados por sección (justificación, métodos, comparación, discusión) más una tabla comparativa de fuentes, y ofrece un selector de estilo de cita APA / ACS / Vancouver. Manuel revisó una vista previa visual, la aprobó ("perfectamente alineado" con el trabajo de Kamila), y pidió desplegar de inmediato para que ella acceda a una versión más adelantada. **Ya está en producción**, verificado con una llamada real contra `web-beta-hazel-49.vercel.app`. Detalle en `docs/handoff.md` (entrada 2026-07-18), `docs/current-status.md` y `docs/decisions.md` (2026-07-18).
+**Sesión larga del 2026-07-18, en orden:**
 
-Nota operativa: el despliegue se hizo desde la laptop de Manuel (no la máquina habitual), que no tenía Node.js global ni sesión de Vercel CLI; se resolvió con el Node portátil ya presente en el repo y Manuel corriendo `vercel login` él mismo. Si la próxima sesión arranca desde esa laptop, hay que repetir el paso de agregar `.tools/node-v22.23.0-win-x64` al PATH antes de cualquier comando `npm`/`npx`/`vercel`.
+1. **Fase C desplegada y aprobada:** borradores de párrafo citados por sección + tabla comparativa + estilos de cita APA/ACS/Vancouver en el informe de evidencia. Manuel la revisó, la aprobó ("perfectamente alineado" con el trabajo de Kamila) y pidió desplegarla de inmediato. **En producción.**
+2. **Fase D (primera pasada de lenguaje) y higiene operativa (alias de Vercel confirmado, QR generado):** comiteadas.
+3. **Primer paso del "compañero de defendibilidad" construido y verificado, NO desplegado.** A pedido de Manuel (para mencionarlo en el póster como trabajo en curso): paso "Tus resultados" (100% manual) y paso "Auditoría de defendibilidad" (6 dimensiones, cada señal anclada a fuente real, ausencia declarada, o resultado propio, nunca a intuición del modelo). Verificado a fondo contra la API real, con foco especial en probar que el modelo NO inventa señales cuando falta evidencia (prueba con aserción dura: cero señales fabricadas). Se le mostró a Manuel una vista previa visual (artefacto publicado en la sesión) con contenido real. **Quedó pendiente que Manuel la revise y apruebe el despliegue.**
+
+Detalle completo en `docs/handoff.md` (entrada 2026-07-18), `docs/current-status.md`, `docs/vision-app.md` y `docs/decisions.md`.
+
+Nota operativa: la sesión se corrió desde la laptop de Manuel (no la máquina habitual), sin Node.js global ni sesión de Vercel CLI; se resolvió con el Node portátil ya presente en el repo y Manuel corriendo `vercel login` él mismo. Si la próxima sesión arranca desde esa laptop, hay que repetir el paso de agregar `.tools/node-v22.23.0-win-x64` al PATH antes de cualquier comando `npm`/`npx`/`vercel`.
 
 Próximos pasos, en orden:
 
-1. **Prueba en frío de Kamila** con la versión ya adelantada en producción (sigue pendiente; ella se atrasó y reacciona hasta el lunes). Es el hito de validación más importante.
-2. Manuel recorre producción en teléfono físico cuando pueda.
-3. Decidir si se amplían los estilos de cita (hoy aproximados por falta de volumen/páginas en las fuentes gratuitas) y si se quiere una salida específica por formato de divulgación.
-4. Higiene: solo queda el límite de gasto mensual en Anthropic (Manuel, en la consola). El alias de Vercel y el QR ya están resueltos (`poster/assets/qr-produccion.svg`/`.png`, 2026-07-18).
+1. **Manuel revisa la vista previa de la auditoría de defendibilidad** y decide si se despliega (Fase D también sigue sin desplegar, se puede agrupar).
+2. **Prueba en frío de Kamila** con la versión ya adelantada en producción (sigue pendiente; ella se atrasó y reacciona hasta el lunes). Es el hito de validación más importante.
+3. Manuel recorre producción en teléfono físico cuando pueda.
+4. Decidir si se amplían los estilos de cita (hoy aproximados por falta de volumen/páginas en las fuentes gratuitas) y si se quiere una salida específica por formato de divulgación.
+5. Cuando se apruebe la auditoría: mencionarla en el póster como trabajo en curso (fuera de esta sesión, con su propia verificación visual).
+6. Higiene: solo queda el límite de gasto mensual en Anthropic (Manuel, en la consola).
 
 ---
 
