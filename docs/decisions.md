@@ -168,3 +168,29 @@ Por eso el contador se lleva **por prefijo** (`/24` en IPv4, `/64` en IPv6) y no
 **Verificacion.** 41 chequeos locales, 0 fallos, incluyendo las seis IPs reales del pool como caso de prueba del agrupamiento. Se comprobo con **Chromium real** que un navegador si manda `Origin` (y `Referer`) en un POST al mismo dominio, que era el unico supuesto capaz de romper la app entera al desplegar. Contra produccion real: 403 sin origen, 403 con origen ajeno, 403 desde `example.com`, 413 sobre los topes, 429 al pasar el limite con `Retry-After`, y recorrido en navegador real donde `/api/generate` y `/api/search` devuelven 200 con contenido y DOIs reales, sin errores de JavaScript.
 
 **Aparte, dos correcciones de rastro:** el comentario de `generate.js` recomendaba `claude-opus-4-8` para maxima calidad; quedo desactualizado y se cambio a `claude-opus-5`, que cuesta lo mismo. Y `web/.env.example` documenta ahora las variables nuevas.
+
+## [2026-07-25] Desconectar la integracion de Git de Vercel, tras dos horas de produccion caida
+
+**Contexto.** Al verificar produccion despues de rotar la clave, la app entera devolvia **404**, incluida la pagina principal estatica. La primera hipotesis natural (que la llave nueva estaba mal configurada) era **falsa**, y descartarla fue rapido: una llave mala produce 500 o 502 en `/api/*`, nunca un 404 en un HTML estatico que ni siquiera toca la API.
+
+**Diagnostico.** El despliegue que servia produccion (`web-ka1jlhnaf`, `dpl_GJXEpCjFMVatpTVB2ZPzPY7ziKCu`) tenia dos huellas delatoras: el alias `web-git-master-mreyesgs-projects.vercel.app`, que Vercel solo asigna a despliegues originados en la integracion de Git, y un build de `.` en **0 ms**, o sea que no construyo nada. `vercel project inspect web` confirmo la causa raiz:
+
+```
+Root Directory    .
+```
+
+El proyecto estaba conectado al repositorio de GitHub con el directorio raiz apuntando a la **raiz del repo**, no a `web/`. La raiz del repo no tiene `index.html` ni carpeta `api/`, asi que cualquier despliegue disparado por Git produce un sitio 404 completo.
+
+**Por que el fallo estaba latente y no se habia visto.** Los despliegues manuales del proyecto siempre se hacen con `vercel --prod` **desde dentro de `web/`**. En ese caso el CLI sube el contenido de `web/` como el proyecto, y `Root Directory = .` significa "la raiz de lo que se subio", que es justo lo correcto. Un despliegue desde Git, en cambio, clona el repositorio completo y `.` pasa a ser la raiz equivocada. O sea: el ajuste estaba mal desde el principio, pero solo se manifestaba cuando algo disparaba Git. Mientras nadie comiteo, nadie lo noto.
+
+Cronologia: el despliegue roto se creo a las 10:33, minutos despues de un `git push`, y produccion sirvio 404 durante unas dos horas hasta que se detecto en la verificacion siguiente. Notese que la verificacion en navegador **habia pasado limpia** justo antes del push, asi que el fallo se introdujo despues de verificar, que es exactamente el hueco que este tipo de disparador automatico abre.
+
+**Decision.** Desconectar la integracion de Git (`vercel git disconnect`). Los despliegues quedan **solo manuales y verificados**, que es como ya se venian haciendo. El procedimiento documentado no cambia.
+
+**Razon.** Se consideraron dos arreglos. El "correcto" a largo plazo es poner `Root Directory = web` en Project Settings, y entonces los push desplegarian la app bien. Pero tiene un efecto secundario que hay que ver antes de aplicarlo: con ese ajuste, desplegar manualmente **desde `web/` se romperia** (el CLI subiria `web/` y Vercel buscaria `web/web/`), asi que habria que cambiar tambien el procedimiento para desplegar desde la raiz del repo. Con el congreso encima, se eligio la opcion con menos piezas moviles. La desconexion es reversible con un comando.
+
+Hay ademas un argumento de fondo, coherente con la cultura del proyecto: el despliegue automatico por push **publica sin pasar por la compuerta de verificacion**. En este repo nada se da por bueno sin recorrer produccion en un navegador real, y un disparador que despliega solo por comitear documentacion se salta ese paso por diseno.
+
+**Impacto y aviso para el futuro.** El ajuste `Root Directory = .` **sigue mal** y es una trampa armada: si alguien reconecta Git sin corregirlo, produccion vuelve a caer igual. Quedo advertido en `web/README.md`, junto a las instrucciones de despliegue, que es donde alguien lo va a leer justo antes de tropezar. Si se reconecta, el orden obligatorio es: primero `Root Directory = web`, despues cambiar el procedimiento a desplegar desde la raiz del repo, y solo entonces reconectar.
+
+**Verificacion.** Produccion restaurada con `vercel --prod` desde `web/` (`web-22fnc9xbs`): pagina principal 200, `GET /api/search` 405, `POST /api/generate` sin `Origin` 403. Recorrido completo en navegador real: `/api/generate` y `/api/search` devuelven 200 con contenido y DOIs reales, la contencion sigue viva, 0 errores de JavaScript. Tras desconectar, se hizo un push de prueba para comprobar que **ya no se crea ningun despliegue nuevo**.

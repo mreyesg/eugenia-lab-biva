@@ -27,12 +27,14 @@ A diferencia de la versión artefacto de Claude.ai (`../app/biblioteca_viva_app.
    Sigue las preguntas (aceptar los valores por defecto está bien). Esto crea el proyecto y hace un despliegue de prueba.
 4. Configura la clave de la API. En el panel de Vercel: **Project → Settings → Environment Variables**, añade:
    - `ANTHROPIC_API_KEY` = tu clave de https://console.anthropic.com
-   - (opcional) `CLAUDE_MODEL` = `claude-opus-4-8` si quieres máxima calidad
-5. Despliega a producción:
+   - (opcional) `CLAUDE_MODEL` = `claude-opus-5` si quieres máxima calidad
+5. Despliega a producción, **siempre desde la carpeta `web/`**:
    ```
    vercel --prod
    ```
    Vercel te da una URL pública (algo como `https://biblioteca-viva.vercel.app`).
+
+   > **Aviso importante (2026-07-25).** El proyecto tiene el ajuste **Root Directory en `.`**, que es correcto solo cuando el CLI sube el contenido de `web/`. Si alguien conecta el proyecto a GitHub, cada push desplegaría la **raíz del repositorio**, que no tiene `index.html` ni carpeta `api/`, y producción quedaría en 404 completo. Ya pasó una vez y tumbó el sitio dos horas. Por eso la conexión de Git está **desconectada a propósito**. Si algún día se quiere reconectar, primero hay que poner **Root Directory = `web`** en Project Settings, y a partir de ahí desplegar desde la **raíz del repo** y no desde `web/`. Ver `docs/decisions.md` (2026-07-25).
 6. Convierte esa URL en un QR (por ejemplo en https://www.qr-code-generator.com) para el póster.
 
 ## Cómo probar localmente
