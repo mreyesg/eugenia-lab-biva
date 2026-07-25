@@ -2,6 +2,32 @@
 
 Agenda y preparación para la próxima sesión de trabajo.
 
+## Arranque recomendado (actualizado 2026-07-25, cierre de sesión larga)
+
+**Todo lo que estaba construido y sin desplegar YA ESTÁ EN PRODUCCIÓN.** Se cerró el pendiente que arrastraba desde el 18 de julio (Fase D, "Tus resultados" y auditoría de defendibilidad) y además se hizo una ronda nueva de utilidad científica. La app en `https://web-beta-hazel-49.vercel.app` sirve hoy:
+
+- Exportación del corpus a **BibTeX, RIS y CSV** (para Zotero, Mendeley, EndNote o una hoja de cálculo).
+- **Guardar y cargar el proyecto** como archivo. Antes el progreso vivía solo en `localStorage`: quien usaba el QR en el teléfono y luego abría su laptop perdía todo.
+- **Búsqueda auditable:** se ve la consulta que se ejecutó y su origen, se puede reescribir, filtrar por año y por tipo de documento, y se ve cuántos resultados dio cada base. Cada búsqueda queda registrada y el informe trae un **párrafo de métodos listo para pegar** en un manuscrito.
+- **Tres bases de datos** (OpenAlex, Europe PMC y Crossref), 12 resultados por búsqueda en vez de 8, y abstracts completos en vez de cortados a la mitad.
+
+**El QR impreso sigue sirviendo sin cambios**, porque apunta al alias del proyecto y no a un despliegue concreto. Está en `poster/assets/qr-produccion.svg` (para impresión) y `.png` (para pantalla); se verificó decodificándolo.
+
+**La ponencia se cerró para imprenta sin la prueba de Kamila**, que no llegó a tiempo. Hay dos versiones de tema visual: botánica (`build_presentation.js`) y química (`build_presentation_quimico.js`). Ojo al mantenerlas: son dos scripts independientes que solo difieren en la paleta, así que un cambio de contenido va en los dos.
+
+Próximos pasos, en orden:
+
+1. **Comitear el trabajo de esta sesión** (13 archivos sin comitear). El repo va por detrás de producción hasta entonces.
+2. **Escanear el QR con un teléfono físico real y recorrer la app.** Es el pendiente más barato y con más valor antes del congreso, y las funciones nuevas nunca se han visto en pantalla pequeña.
+3. **Límite de gasto mensual en Anthropic** (solo Manuel, en la consola). Cobra más peso ahora: abstracts más largos y 12 resultados por búsqueda suben el costo por uso.
+4. Decidir el etiquetado de las columnas generadas por IA en el CSV exportado (hoy `ajuste` y `aporte_a_mi_investigacion` no se distinguen del metadato real).
+5. **Congreso del Colegio de Químicos.** La MDE sigue siendo la función estrella; el registro de búsqueda y los exportadores son argumentos nuevos de credibilidad para la demo.
+6. **Después del congreso, el trabajo de fondo:** extracción estructurada de variables experimentales cuantitativas, la meta del semestre de Kamila. Es el techo real de la app: hoy la MDE se construye sobre prosa, no sobre una tabla de números. Plan de 4 pasos en `lab/roadmap.md`.
+
+Detalle completo en `docs/handoff.md` (entrada 2026-07-25), `docs/current-status.md` y `docs/decisions.md` (3 entradas del 2026-07-25).
+
+---
+
 ## Arranque recomendado (actualizado 2026-07-18, cierre de sesión larga)
 
 **Sesión larga del 2026-07-18, en orden:**
@@ -67,7 +93,7 @@ Código en la carpeta `web/`. El artefacto viejo de Claude.ai (`app/biblioteca_v
 
 ## Mejoras diferidas (cuando haya tiempo)
 
-- Ampliar la búsqueda: reintento con consulta más amplia cuando OpenAlex devuelve 0 resultados, y añadir Crossref y PubMed como fuentes secundarias (PubMed es fuerte en fitoquímica).
+- ~~Ampliar la búsqueda: reintento con consulta más amplia cuando OpenAlex devuelve 0 resultados, y añadir Crossref y PubMed como fuentes secundarias (PubMed es fuerte en fitoquímica).~~ **Cerrado el 2026-07-25, con una corrección basada en medición:** el reintento amplio y Europe PMC se hicieron el 2026-07-12, y Crossref se añadió el 2026-07-25. **PubMed se probó y se descartó:** devolvió 1 resultado y 0 que Europe PMC no tuviera ya, porque Europe PMC indexa MEDLINE/PubMed. La intuición de que "PubMed es fuerte en fitoquímica" es correcta, pero esa fortaleza ya llega por Europe PMC. También se descartaron Semantic Scholar (HTTP 429 sin llave) y DOAJ (0 resultados en consultas específicas). No reabrir sin datos nuevos; ver `docs/decisions.md` (2026-07-25).
 - Evaluar usar un modelo más barato (Haiku) solo para los pasos mecánicos de la búsqueda, para bajar el costo por uso.
 
 ---
@@ -76,7 +102,7 @@ Código en la carpeta `web/`. El artefacto viejo de Claude.ai (`app/biblioteca_v
 
 - ~~**Rotar la `ANTHROPIC_API_KEY`**: quedó visible en el historial de una sesión de Code. Crear una nueva en console.anthropic.com, actualizarla en Vercel (Settings del proyecto, entorno Production) y en `web/.env.local`, y borrar la anterior.~~ **Hecho 2026-07-12:** clave nueva generada por Manuel directamente en console.anthropic.com (nunca pasó por el chat), actualizada en `web/.env.local` y en los 3 entornos de Vercel, producción redesplegada, y la clave vieja ya revocada por Manuel el mismo día. Rotación cerrada del todo. Detalle en `docs/current-status.md`.
 - Considerar un **límite de gasto mensual** en la consola de Anthropic (la app es pública vía QR).
-- Generar el **QR** apuntando a la URL pública para el póster.
+- ~~Generar el **QR** apuntando a la URL pública para el póster.~~ **Hecho el 2026-07-18** (`poster/assets/qr-produccion.svg` y `.png`), y reverificado el 2026-07-25 decodificándolo: apunta al alias vigente, no hay que regenerarlo.
 
 ---
 

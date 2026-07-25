@@ -18,3 +18,7 @@ poster/src/node_modules/
 .DS_Store
 Thumbs.db
 *.log
+
+# Archivos de bloqueo temporal de Office (aparecen al abrir un .pptx y quedan
+# sueltos si PowerPoint no cierra limpio). Nunca son contenido del proyecto.
+~$*

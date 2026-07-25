@@ -12,39 +12,57 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 
 ## Última entrega
 
-**Fecha:** 2026-07-18 (cierre de sesión larga: primer paso del "compañero de defendibilidad")
+**Fecha:** 2026-07-25 (sesión larga: cierre de la ponencia, y ronda de utilidad científica desplegada)
 **Quién:** sesión de Claude Code.
 
-Última pieza de una sesión larga. Manuel confirmó que quería seguir hasta terminar el primer paso de la extensión estratégica registrada el 13 de julio, para poder mencionarla en el póster como trabajo en curso, y luego cerrar la sesión y apagar la máquina.
+Sesión en tres tramos, todos cerrados. Manuel pidió al final "un cierre limpio".
 
 ### Qué se hizo
 
-Se usó modo plan explícitamente (un agente Plan dedicado diseñó la implementación antes de codificar, plan guardado en `C:\Users\manue\.claude\plans\temporal-prancing-anchor.md`) dado que esta es la tarea de mayor riesgo de alucinación de toda la app. Dos piezas construidas:
+**1. Ponencia cerrada para imprenta.** Se cotejó si `presentation/` estaba en forma final: no lo estaba, tenía 4 marcadores PENDIENTE activos. La prueba en frío con Kamila **nunca llegó** y a Manuel se le agotó el tiempo de imprenta, así que se ataron los cabos con información real disponible (Fase C en producción, Fase D verificada, avance del compañero de defendibilidad) y los dos que no se podían atar (la prueba de Kamila y la sede de publicación) se reformularon de "en construcción" a **explícitamente diferidos**, en vez de dejar una promesa abierta sobre un resultado que no existe. Luego Manuel pidió **una segunda versión de tema visual más química**: se creó `presentation/src/build_presentation_quimico.js` (azul Prusia, teal de laboratorio, ámbar de mechero) que genera `Presentacion_Biblioteca_Viva_Quimico.pptx`, 25 slides, mismo contenido y layout. Ambas verificadas visualmente vía PowerPoint COM. Nota de mantenimiento: son dos scripts independientes que solo difieren en el bloque de paleta, así que **un cambio de contenido hay que aplicarlo en los dos**.
 
-1. **Paso "Tus resultados"** (`state.resultadosPropios[]`): formulario 100% manual, sin IA en la escritura. Campos: título, qué midió, método, muestra/alcance, hallazgo, limitaciones.
-2. **Paso "Auditoría de defendibilidad"** (tarea `auditoria` en `generate.js`, la número 11): 6 dimensiones (teórica, metodológica, ética, novedad, reproducibilidad, alineación pregunta-evidencia), cada señal anclada a una fuente real, una ausencia declarada del corpus, o un resultado/diseño propio, nunca a una intuición del modelo. El schema fuerza pronunciarse sobre las 6 dimensiones (con razón explícita cuando no hay evidencia), sin forzar una cuota de señales.
+**2. Se desplegó por fin lo que llevaba una semana construido y sin subir** (deployment `dpl_9XJdZzcjPU5pvLD4WhVit1zSAHTB`): pulido de Fase D, paso "Tus resultados" y auditoría de defendibilidad. Reverificado contra producción real: la garantía anti-alucinación se sostiene ahí, no solo en pruebas locales (cero señales ancladas a resultados propios cuando no se envían).
 
-Detalle técnico completo, incluyendo dos hallazgos reales durante la verificación (limitación de `minItems`/`maxItems` en la API, y un `max_tokens` insuficiente detectado por la propia prueba), en `docs/current-status.md` y `docs/decisions.md` (ambos 2026-07-18).
+**3. Ronda de utilidad científica** (deployment `dpl_EUvRiHiFuiZmadBmeJyLfXFJaRdr`, alias oficial re-apuntado automáticamente). Manuel pidió optimizar la app para investigación real y eligió hacer lo aditivo y de bajo riesgo antes del congreso. Cuatro cosas: exportación del corpus a **BibTeX/RIS/CSV**; **guardar y cargar el proyecto** como archivo (antes vivía solo en `localStorage` y se perdía al cambiar de dispositivo); **búsqueda auditable** (consulta visible y editable, filtros de año y tipo, resultados por base, registro persistente en `state.busquedas` y párrafo de métodos en el informe); y **Crossref** como tercera base, con tope de 8 a 12 resultados y abstracts de 900 a 2500 caracteres. Detalle en `docs/current-status.md` y `docs/decisions.md` (3 entradas del 2026-07-25).
 
 ### Verificación
 
-La más rigurosa de la sesión, dado el riesgo de la tarea: contrato probado contra la API real en 3 escenarios (evidencia rica, evidencia mínima sin resultados propios, evidencia mínima con resultados propios), con una **aserción dura de no-alucinación**: cuando no se proveen resultados propios, ninguna señal puede anclarse a ellos, verificado automáticamente y sin excepciones. Un chequeo de consistencia estructural (cobertura vs. señales) también pasó limpio en las 3 corridas. Frontend verificado con 22 chequeos en un contexto `vm` simulado. `node --check` y `bash scripts/verify.sh`: 0 fallos.
+- Contrato del motor contra las APIs reales (OpenAlex, Europe PMC, Crossref, Anthropic) invocando el handler real en Node: 30+ chequeos, 0 fallos. Frontend en contexto `vm` con DOM simulado: 60+ chequeos, 0 fallos. Contra producción tras desplegar: `/api/search` con las 3 bases, consulta manual respetada al pie de la letra, filtros efectivos, y un payload de 58033 caracteres aceptado que el tope viejo de 40000 habría rechazado con un 413. `bash scripts/verify.sh --network`: 0 fallos.
+- **Dos bugs reales encontrados por las pruebas, no por leer el código:**
+  1. **Corrupción de metadatos en la exportación.** Partir la cadena de autores por comas convertía un artículo de Crossref de un solo autor ("Abbey, Lord") en dos personas inexistentes en el `.bib`. Corregido guardando `autores_lista` estructurada desde las tres bases. Es el tipo de error que un gestor de referencias propaga en silencio a una bibliografía publicada.
+  2. **`oa: !!c.oa`** convertía "no se sabe" en "acceso cerrado" al guardar una referencia de Crossref, que no informa ese dato. Corregido a `null`, y verificado que ni el chip ni la recomendación de préstamo interbibliotecario se disparan con dato desconocido.
+- **Dos aserciones mías estaban mal escritas y las corregí en vez de tocar el producto:** una consulta con palabras reales aunque ajenas al tema sí devuelve artículos (comportamiento correcto de un buscador; lo que importa, y se verificó, es que la anotación los marque **todos** como tangenciales), y la regla de no usar guiones largos aplica al texto que redactamos, no a un título bibliográfico real que los contenga.
+- **QR verificado, no solo localizado:** se decodificó `poster/assets/qr-produccion.png` de vuelta y apunta a `https://web-beta-hazel-49.vercel.app`, el alias vigente. No hay que regenerarlo: apunta al alias de proyecto, no a un deployment concreto.
+- **Auditoría explícita de los principios anti-alucinación**, a pedido de Manuel al cierre: los seis cuidados originales verificados intactos en el código (anclaje obligatorio, declarar ausencia en vez de fabricar crítica, sin cuota de señales, no convertir ausencia en prueba de ausencia, lo ético como preguntas, y sin botón de IA donde no hay texto verificable del que partir).
 
 ### Qué quedó a medias
 
-- **No desplegado a producción.** Se publicó una vista previa visual (artefacto, con contenido real de la corrida de verificación) para que Manuel la revise cuando pueda; el despliegue queda pendiente de su aprobación.
-- Fase D (pulido de lenguaje, de antes en esta misma sesión) tampoco se desplegó; se puede agrupar con este cambio.
-- El póster no se tocó (decisión explícita de Manuel, para después con su propia verificación visual).
+- **Nada comiteado.** Ver la nota de cierre abajo.
+- **Un hueco que esta sesión introdujo y dejó señalado:** el CSV exportado mezcla dato real con evaluación de IA sin marcarlo. Las columnas `ajuste` y `aporte_a_mi_investigacion` las escribió el modelo, y `resumen` puede ser extraído por IA si la referencia vino de un PDF, pero visualmente todo parece metadato de la fuente. Los `.bib` y `.ris` sí quedaron limpios (solo abstract real y procedencia factual). Arreglo propuesto y **no aplicado**: renombrar a `ia_ajuste_evaluado` / `ia_aporte_sugerido`, o añadir una columna de procedencia. Manuel lo sabe y no decidió todavía.
+- **Superficie cambiada y no reprobada:** subir los abstracts a 2500 caracteres afecta también a `notas`, `sintesis`, `borradores` y `auditoria`, y solo se hizo la prueba pareada con `mde`. Más texto de anclaje debería reducir el riesgo de alucinación, no subirlo, pero no se verificó, y `auditoria` es la tarea de mayor riesgo de la app.
+- **Afirmación retirada, importante para no reintroducirla:** se justificó subir el recorte de abstract diciendo que mejoraría la MDE, y la prueba pareada **no lo sostuvo** (6 y 6 valores cuantitativos con 900 y con 2500 caracteres). El comentario del código se corrigió para no dejar una justificación falsa que una sesión futura tomara como hecho. Lo que sí se midió, determinista sobre 36 abstracts reales: el límite viejo truncaba el 81% de ellos, descartaba el 43% del texto, y en el 41% de esos casos había valores numéricos que solo aparecían después del carácter 900.
+- El póster no se tocó. La prueba en frío de Kamila sigue sin ocurrir y ya se cerró la ponencia sin ella.
 
 ### Próximo paso recomendado
 
-1. Manuel revisa la vista previa y decide si se despliega (junto con Fase D).
-2. Prueba en frío de Kamila (sigue siendo el hito más importante, hasta el lunes).
-3. Mencionar la auditoría en el póster como trabajo en curso, una vez aprobada.
+1. **Decidir el commit** (13 archivos, ver nota de cierre) y si se hace push. El repo va por detrás de producción hasta entonces.
+2. **Recorrer producción en un teléfono físico real**, escaneando el QR. Es el pendiente más barato y con más valor antes del congreso, y las funciones nuevas (controles de búsqueda, botones de exportación) nunca se vieron en pantalla pequeña.
+3. Decidir el etiquetado de las columnas de IA en el CSV.
+4. Si se quiere blindar antes del congreso: correr las pruebas anti-alucinación de `auditoria` con abstracts de 2500 caracteres.
+5. Higiene: sigue pendiente el **límite de gasto mensual en Anthropic** (solo Manuel, en la consola). Cobra más peso ahora: los abstracts más largos y el tope de 12 resultados suben el costo por búsqueda.
+6. **Después del congreso, el trabajo de fondo:** extracción estructurada de variables experimentales cuantitativas. Quedó descrita como un plan de 4 pasos con su riesgo principal identificado en `lab/roadmap.md` (alucinar un número es más peligroso que alucinar texto, porque es indistinguible a simple vista), en vez de una sola línea de intención.
 
 ### Nota de cierre
 
-Manuel pidió cerrar la sesión y apagar la máquina al terminar. Árbol de trabajo revisado antes de comitear: quedan sin comitear 3 archivos de `presentation/` (`Presentacion_Biblioteca_Viva.pptx`, `README.md`, `src/build_presentation.js`, cambio pequeño: 5 líneas en los `.md`/`.js`) que **ya estaban modificados al iniciar esta sesión**, esta sesión nunca los tocó. No se comitearon porque no hay forma de confirmar si es trabajo en curso intencional de otra sesión o un cambio accidental; queda para que Manuel lo revise y decida (`git diff -- presentation/` para verlo, o `git checkout -- presentation/` si decide descartarlo).
+Manuel pidió cerrar por hoy. **Árbol de trabajo con 13 archivos sin comitear** (11 modificados, 2 nuevos), porque no se pidió comitear en ningún momento: `docs/current-status.md`, `docs/decisions.md`, `docs/module-map.md`, `docs/handoff.md`, `lab/decision_log.md`, `lab/roadmap.md`, `lab/next_session.md`, `presentation/` (3 modificados + 2 nuevos) y `web/` (`index.html`, `api/search.js`, `api/generate.js`).
+
+Los cambios de `presentation/` que ya venían sin comitear de una sesión anterior (numeración de comentarios de slides, y el conteo de 24 a 25 slides en el README) quedaron absorbidos en el trabajo de esta sesión, así que **la ambigüedad que la entrega del 2026-07-18 dejó anotada ya no aplica**: ese diff ahora es parte del cierre de la ponencia y no hay que decidir si descartarlo.
+
+**Ojo, lo importante:** lo desplegado a producción ya está live y **no depende del commit**. El repo va por detrás de producción hasta que se comitee, así que si otra máquina clona el repo hoy no reproduce lo que sirve el QR.
+---
+
+**Registro anterior: 2026-07-18 (primer paso del compañero de defendibilidad)**
+**Quién:** sesión de Claude Code. Construyó y verificó el paso "Tus resultados" y la auditoría de defendibilidad (tarea `auditoria`, 6 dimensiones con anclaje obligatorio a evidencia real), con la verificación anti-alucinación más rigurosa del proyecto: aserción dura de que ninguna señal se ancla a resultados propios cuando no se proveen. Quedó sin desplegar a la espera de la aprobación de Manuel; **se desplegó finalmente el 2026-07-25**. Detalle completo en `docs/current-status.md` y `docs/decisions.md` (entradas 2026-07-18).
 
 ---
 

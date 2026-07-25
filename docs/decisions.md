@@ -95,3 +95,36 @@ Mismo formato que `lab/decision_log.md`, por consistencia:
 **Razon:** El hallazgo era comportamiento correcto y bien fundamentado del modelo, no una alucinacion ni un defecto de diseno. Cambiar el schema para prohibirlo habria degradado la calidad de la auditoria para evitar un falso positivo de la prueba, no un problema real.
 
 **Impacto:** Documentado para que una sesion futura no reabra esta pregunta ni la trate como un bug. El chequeo de consistencia real que si importa (y que las pruebas si verifican de forma estricta) es que ninguna senal se ancle a un resultado propio cuando `resultadosPropios` esta vacio: eso si se probo como aserción dura y paso limpio.
+
+## [2026-07-25] — De tres bases candidatas, solo Crossref sobrevivio a la medicion
+
+**Contexto:** Se aprobo ampliar el recall del motor bibliometrico anadiendo Crossref, PubMed y Semantic Scholar como endpoints reales, ademas de OpenAlex y Europe PMC. Antes de escribir codigo se midio empiricamente cada candidata con la consulta real del caso Plectranthus.
+
+**Decision:** Se anadio **solo Crossref**, con los filtros `has-abstract:true` y `type:journal-article` (no son opcionales: sin ellos devuelve registros sin resumen y piezas que no son articulos, como pies de tabla). Se descartaron las otras dos, y tambien DOAJ que se evaluo de paso:
+- **PubMed (E-utilities):** devolvio 1 resultado y **0** que no estuvieran ya en Europe PMC, porque Europe PMC ya indexa MEDLINE/PubMed. Costaba 2 viajes HTTP y parseo de XML para cero ganancia medible.
+- **Semantic Scholar:** HTTP 429 en 5 intentos espaciados a lo largo de ~20 segundos. Sin llave el cupo es compartido globalmente, asi que no es fiable para una app publica por QR.
+- **DOAJ:** 0 resultados en la consulta especifica de Plectranthus (7 en una consulta amplia). Al cubrir solo revistas de acceso abierto, falla justo en las busquedas precisas.
+
+**Razon:** Crossref si aporto: 7 de 8 resultados eran nuevos frente a la linea base, incluyendo un articulo **en espanol** de 2024 que ni OpenAlex ni Europe PMC devolvieron, lo cual es especialmente pertinente para el angulo regional del lab (el hallazgo de Fase III de que ~70% de la produccion se concentra en Indo-Malaya y Brasil, "donde esta el Caribe?"). Anadir fuentes que no aportan solo agrega latencia y modos de fallo.
+
+**Impacto:** El motor consulta 3 bases en paralelo. `interleave` se generalizo a N listas. `por_base` distingue `null` (la base no respondio) de `0` (respondio sin resultados), porque en un registro de busqueda no es lo mismo. La medicion queda anotada en el encabezado de `web/api/search.js` para que una sesion futura no vuelva a proponer PubMed o Semantic Scholar sin datos nuevos.
+
+## [2026-07-25] — Los autores se guardan como lista estructurada, no como cadena que haya que partir
+
+**Contexto:** Al construir los exportadores a BibTeX y RIS hacia falta la lista de autores individuales. La primera version partia el campo `autores` (una cadena) por comas y punto y coma. Una prueba con datos reales la tumbo.
+
+**Decision:** Las tres bases devuelven ahora `autores_lista`, un arreglo con un elemento por autor, construido de los datos estructurados de cada fuente (`authorships[].author.display_name` en OpenAlex, `authorList.author[]` con `lastName`/`firstName` en Europe PMC, `author[].family`/`.given` en Crossref). Los exportadores usan `autoresDeRef(r)`, que prefiere esa lista y solo cae a un heuristico cuando la referencia se escribio a mano.
+
+**Razon:** Partir la cadena es ambiguo y **corrompia datos**. Caso real medido en Crossref: un articulo de un solo autor, `{family:"Abbey", given:"Lord"}`, se muestra como "Abbey, Lord" y al partir por comas se convertia en dos personas inexistentes en el archivo `.bib` o `.ris` exportado. Es exactamente el tipo de error que un gestor de referencias propaga silenciosamente a una bibliografia publicada. El heuristico de respaldo, para referencias manuales, resuelve el caso de una sola coma con ambos lados cortos a favor de un unico autor.
+
+**Impacto:** `formatAuthors` se sustituyo por `listaAutoresOpenAlex` + `autoresParaMostrar` (la cadena de visualizacion se deriva de la lista, no al contrario). Cualquier fuente nueva que se integre debe entregar `autores_lista`, no solo la cadena. Principio general: cuando la fuente da datos estructurados, guardarlos estructurados; reconstruirlos despues por parsing es una via directa a inventar datos.
+
+## [2026-07-25] — Subir el recorte de abstract a 2500, con una afirmacion corregida
+
+**Contexto:** `search.js` guardaba los abstracts recortados a 900 caracteres. Al ampliarlo se justifico el cambio afirmando que la Matriz de Decision produciria criterios mas cuantitativos, porque los articulos de quimica reportan los numeros al final del abstract.
+
+**Decision:** Se subio el limite a 2500, pero **se corrigio la justificacion escrita en el codigo**, porque la prueba no sostuvo la afirmacion causal. Lo que si se midio, de forma determinista, sobre 36 abstracts reales de las tres bases: el limite de 900 truncaba el **81%** de ellos y descartaba en promedio el **43%** del texto; en el **41%** de los truncados habia valores numericos (concentraciones, rendimientos, unidades) que aparecian **solo despues** del caracter 900, asi que no llegaban ni al modelo ni a la pantalla. Lo que **no** se pudo demostrar: una corrida pareada de la tarea `mde` con la misma evidencia recortada a 900 y a 2500 dio la misma cantidad de valores cuantitativos en los criterios (6 y 6).
+
+**Razon:** El beneficio real y verificable es que el dato deja de llegar mutilado a media oracion, lo cual afecta tambien a la ficha de lectura (tarea `notas`) y a la sintesis, que se construyen sobre ese mismo campo. Afirmar una mejora de la MDE que una sola corrida pareada no respalda habria dejado en el codigo una justificacion falsa que una sesion futura tomaria como hecho establecido.
+
+**Impacto:** Efecto colateral que hubo que atender: con abstracts de 2500 caracteres, 15 referencias aceptadas superaban el `MAX_PAYLOAD_CHARS` de 40000 de `generate.js` y habrian recibido un 413 justo el investigador que mas evidencia curo. Se subio a 150000 (~50 referencias, ~37000 tokens de entrada en el peor caso) y se verifico en produccion con un payload de 58033 caracteres que el tope viejo habria rechazado. Leccion de metodo: al ampliar cuanto dato entra al pipeline, revisar los topes de todo el camino, no solo el del punto que se cambio.
