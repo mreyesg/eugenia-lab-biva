@@ -89,17 +89,28 @@ escribir(por_id(9),
 por_id(8).width = Inches(28.0); por_id(8).height = Inches(1.7)
 por_id(9).width = Inches(28.5); por_id(9).top = Inches(1.95); por_id(9).height = Inches(1.0)
 
-# Logo institucional. Es cuadrado (900x900), asi que se coloca a escala 1:1
-# dentro del recuadro de logos de la plantilla, sin deformarlo.
-LOGO = "logo_upr.jpg"
-if os.path.exists(LOGO):
-    borrar(11)  # el marcador de texto "UPR-RP LOGO"
-    lado = 1.9
-    sl.shapes.add_picture(LOGO, Inches(30.75), Inches(0.7), Inches(lado), Inches(lado))
-    ac = por_id(12)  # "ACS PR LOGO", se corre al lado para no quedar debajo del logo
-    if ac is not None:
-        ac.left, ac.top, ac.width = Inches(32.85), Inches(1.25), Inches(2.4)
-        escribir(ac, "ACS PR LOGO", tam=20, color=GRIS, espacio=0)
+# Logos institucionales. Se alinean a la MISMA ALTURA y cada uno conserva su
+# proporcion: UPR y Colegio son cuadrados, el de ACS es vertical (0.566 ancho/alto),
+# asi que estirarlos todos al mismo ancho los deformaria.
+# El de ACS venia en .webp, que PowerPoint no maneja de forma fiable: se convirtio a PNG.
+# El del Colegio traia un 12.5% de margen transparente por lado (usaba solo el 56% de su
+# area), asi que se recorto a su contenido para que los tres se vean del mismo tamano.
+LOGOS = [("logo_upr.jpg", 1.000), ("logo_colegio_rec.png", 1.000), ("logo_acs.png", 0.566)]
+presentes = [(f, r) for f, r in LOGOS if os.path.exists(f)]
+if presentes:
+    borrar(11, 12)  # marcadores de texto "UPR-RP LOGO" y "ACS PR LOGO"
+    alto, hueco = 1.9, 0.22
+    ancho_total = sum(alto * r for _, r in presentes) + hueco * (len(presentes) - 1)
+    zona_ini, zona_fin = 29.6, 35.5
+    x = zona_ini + (zona_fin - zona_ini - ancho_total) / 2
+    marco = por_id(10)
+    if marco is not None:
+        marco.left, marco.top = Inches(x - 0.28), Inches(0.33)
+        marco.width, marco.height = Inches(ancho_total + 0.56), Inches(alto + 0.36)
+    for arch, prop in presentes:
+        w = alto * prop
+        sl.shapes.add_picture(arch, Inches(x), Inches(0.51), Inches(w), Inches(alto))
+        x += w + hueco
 
 # ---------- BARRA IZQUIERDA ----------
 escribir(por_id(13), "Overview", tam=46, color=MORADO, bold=True, espacio=0)

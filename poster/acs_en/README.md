@@ -41,8 +41,14 @@ habilite: ese ya esta habilitado desde antes.
 
 ## Pendiente, solo Manuel
 
-- **Logo de ACS.** Sigue como marcador de texto. El de la UPR ya esta incorporado
-  (`src/logo_upr.jpg`, cuadrado 900x900, colocado a escala 1:1 para no deformarlo).
+- ~~Logos.~~ **Hechos.** Los tres estan puestos: UPR (`src/logo_upr.jpg`), Colegio de
+  Quimicos (`src/logo_colegio_rec.png`) y ACS Puerto Rico (`src/logo_acs.png`).
+  Dos detalles de por que los archivos no son los originales tal cual:
+  el de ACS venia en `.webp`, que PowerPoint no maneja de forma fiable, y se convirtio
+  a PNG; el del Colegio traia un 12.5% de margen transparente por lado (usaba solo el
+  56% de su area) y se recorto a su contenido, porque si no se veia mas pequeno que los
+  otros dos. Se alinean a la misma altura y cada uno conserva su proporcion: UPR y
+  Colegio son cuadrados, el de ACS es vertical (0.566 ancho/alto).
 - **Referencias.** Hay una nota honesta sobre bases de datos y disponibilidad de
   datos, no una lista numerada. No se inventaron referencias.
 - **Idioma de las figuras.** La app corre en espanol, asi que las capturas muestran
