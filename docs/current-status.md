@@ -82,7 +82,7 @@ Confirmado por inspección de código, no solo por lo que dice `lab/project_stat
 
 ## Pendientes activos
 
-- Definir límite de gasto mensual en la consola de Anthropic (requiere a Manuel en la consola, no se puede hacer por agente).
+- **Definir límite de gasto mensual en la consola de Anthropic** (requiere a Manuel en la consola, no se puede hacer por agente). Subió de prioridad el 2026-07-25: la contención por código ya está desplegada y quedó demostrado que ninguna de sus tres defensas es un límite duro. Este tope es la única cota real del gasto.
 - Considerar si `friccion`, `pregunta` y `notas` (que se quedaron en el `maxTokens` default de 1600) necesitan el mismo margen que se le dio a `mapa` y `divulgacion`; por ahora no se ha visto evidencia de que trunquen, pero tampoco se probaron a fondo en esta ronda.
 - Decidir si se despliega ya la Fase D (primera pasada de pulido de lenguaje, comiteada el 2026-07-18, verificada, no desplegada) o se agrupa con el siguiente cambio.
 
@@ -112,3 +112,23 @@ Objetivo de la ronda, pedido por Manuel: que la app sea mucho mas util para la i
 - `bash scripts/verify.sh --network`: 0 fallos, 0 advertencias.
 
 **Lo que NO se demostro, dicho explicitamente:** que los abstracts mas largos mejoren la redaccion de la Matriz de Decision. Una corrida pareada dio la misma cantidad de valores cuantitativos con 900 y con 2500 caracteres. El beneficio medido es que el dato deja de llegar mutilado (81% de los abstracts se truncaban, perdiendo el 43% del texto, y en el 41% de esos casos habia numeros que solo aparecian despues del caracter 900). Ver `docs/decisions.md`.
+
+## 2026-07-25 (segunda ronda del dia): contencion de costo en los endpoints publicos
+
+**Desplegado y verificado contra produccion.** Los dos endpoints estaban abiertos: sin autenticacion, sin verificacion de origen y sin limite de peticiones. Cualquiera con la URL podia llamarlos desde una terminal, sin pasar por la app, y el gasto lo pagaba la clave del proyecto.
+
+Modulo nuevo `web/lib/contencion.js`, aplicado antes de cualquier gasto en `/api/generate` y `/api/search`:
+
+| Defensa | Comportamiento | Perilla |
+|---|---|---|
+| Origen | 403 si `Origin` (o `Referer` de respaldo) no esta en la lista permitida | `ORIGENES_PERMITIDOS` |
+| Ritmo | 429 con `Retry-After` al pasar 60/minuto o 600/hora **por prefijo de red** | `LIMITE_POR_MINUTO`, `LIMITE_POR_HORA` |
+| Tamano | 413 sobre 80000 caracteres en `generate` (antes 150000) y 20000 en `search` (antes **sin tope**) | fijo en codigo |
+
+**El hallazgo tecnico de la ronda.** La primera version contaba por IP exacta y no disparaba nunca: 70 peticiones en 17 segundos con limite de 60/minuto pasaron todas, y con limite de 2 tampoco. La hipotesis obvia (que en serverless cada invocacion arranca con memoria nueva) resulto **falsa**: un diagnostico temporal mostro el mismo identificador de arranque de modulo en peticiones consecutivas, o sea que Vercel si reutiliza la instancia. Lo que cambiaba era la IP del cliente: seis peticiones seguidas desde la misma computadora llegaron con seis direcciones distintas, porque el ISP usa un pool CGNAT. El contador pasa a llevarse por **prefijo** (`/24` en IPv4, `/64` en IPv6) y con eso dispara. Medicion completa en `docs/decisions.md`.
+
+**Lo que no queda resuelto, y hay que leerlo asi:** el pool observado abarca varios `/24`, asi que alguien decidido evade el limite rotando prefijos; `Origin` lo falsifica cualquier cliente que no sea navegador; y al escalar en paralelo cada instancia lleva su conteo. **El unico limite duro sigue siendo el tope de gasto mensual en Anthropic, que sigue sin configurarse.**
+
+**Verificacion:** 41 chequeos locales sin fallos (incluidas las seis IPs reales del pool como caso de prueba). Con Chromium real se comprobo que un navegador si manda `Origin` en POST al mismo dominio, que era el unico supuesto capaz de romper la app al desplegar. Contra produccion: 403 sin origen, 403 con origen ajeno, 403 desde `example.com`, 413 sobre los topes, 429 con `Retry-After`, y recorrido en navegador real donde `/api/generate` y `/api/search` devuelven 200 con contenido y DOIs reales, sin errores de JavaScript. `bash scripts/verify.sh --network`: 0 fallos.
+
+**Aparte:** se discutio (sin decidir ni implementar) usar un modelo mas capaz por tarea. Analisis con costos reales en `lab/decision_log.md` (2026-07-25). Se corrigio el comentario de `generate.js` que recomendaba `claude-opus-4-8`, ya desactualizado, por `claude-opus-5`.

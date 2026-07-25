@@ -29,7 +29,7 @@ else
 fi
 
 echo "== 2. Sintaxis de los archivos .js reales del proyecto =="
-JS_FILES="web/api/generate.js web/api/search.js poster/src/build_poster.js"
+JS_FILES="web/api/generate.js web/api/search.js web/lib/contencion.js poster/src/build_poster.js"
 for f in $JS_FILES; do
   if [ ! -f "$f" ]; then
     warn "$f no existe (¿se movio o se renombro?)"

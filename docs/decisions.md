@@ -128,3 +128,43 @@ Mismo formato que `lab/decision_log.md`, por consistencia:
 **Razon:** El beneficio real y verificable es que el dato deja de llegar mutilado a media oracion, lo cual afecta tambien a la ficha de lectura (tarea `notas`) y a la sintesis, que se construyen sobre ese mismo campo. Afirmar una mejora de la MDE que una sola corrida pareada no respalda habria dejado en el codigo una justificacion falsa que una sesion futura tomaria como hecho establecido.
 
 **Impacto:** Efecto colateral que hubo que atender: con abstracts de 2500 caracteres, 15 referencias aceptadas superaban el `MAX_PAYLOAD_CHARS` de 40000 de `generate.js` y habrian recibido un 413 justo el investigador que mas evidencia curo. Se subio a 150000 (~50 referencias, ~37000 tokens de entrada en el peor caso) y se verifico en produccion con un payload de 58033 caracteres que el tope viejo habria rechazado. Leccion de metodo: al ampliar cuanto dato entra al pipeline, revisar los topes de todo el camino, no solo el del punto que se cambio.
+
+## [2026-07-25] Contencion de costo en los endpoints publicos: origen, ritmo y tope de cuerpo
+
+**Contexto.** Manuel pregunto como haria para que, si comparte la app con el mundo, cada usuario pague su propio gasto de IA. Al revisar el backend para responder aparecio un problema mas urgente que el cobro: `/api/generate` y `/api/search` estaban **abiertos**, sin autenticacion, sin verificacion de origen y sin limite de peticiones. Cualquiera con la URL podia llamarlos desde una terminal, sin pasar por la app, y el gasto lo pagaba la clave del proyecto. Los esquemas JSON y los prompts fijos impedian usarlo como un "Claude gratis" generico, pero no impedian gastar dinero ajeno de forma automatizada. Ningun esquema de cobro arregla eso, asi que la contencion iba primero.
+
+**Decision.** Un modulo compartido nuevo, `web/lib/contencion.js`, con tres defensas aplicadas antes de cualquier gasto en los dos endpoints:
+
+1. **Verificacion de origen.** Se rechaza con 403 toda peticion cuyo `Origin` (o `Referer` como respaldo) no este en la lista permitida. La lista incluye el alias oficial, las URLs que Vercel inyecta en tiempo de ejecucion (`VERCEL_URL`, `VERCEL_PROJECT_PRODUCTION_URL`), localhost, y lo que se anada por `ORIGENES_PERMITIDOS`.
+2. **Limite de peticiones** por prefijo de red, 60 por minuto y 600 por hora por defecto, configurables por variable de entorno.
+3. **Tope de cuerpo.** En `generate.js` se bajo `MAX_PAYLOAD_CHARS` de 150000 a 80000. En `search.js` se **anadio** un tope de 20000 que nunca habia existido.
+
+**Por que el orden y los numeros.**
+
+El tope de `search.js` era el hueco mas grande de los dos y no estaba documentado en ninguna parte: el objeto `contexto` (tema, abstract, problema, pregunta principal) va casi entero al prompt de generacion de consulta, asi que sin tope se podian mandar megabytes de texto propio y hacerlos facturar. El caso real mas cargado ronda los 4000 caracteres, asi que 20000 es holgado.
+
+Los 150000 de `generate.js` los habia puesto esta misma jornada, y en retrospectiva eran holgura muy por encima de lo necesario. Toda esa holgura es texto que controla quien llama al endpoint, o sea el amplificador que abarata montar un abuso. Con 80000 siguen cabiendo unas 28 referencias con abstract completo, casi el doble del caso real mas cargado medido.
+
+**El hallazgo que cambio el diseno del limite de peticiones.** La primera version contaba por IP exacta y **no disparaba nunca en produccion**: 70 peticiones seguidas en 17 segundos, con limite de 60 por minuto, pasaron todas. Bajando el limite a 2 por minuto tampoco disparo. La hipotesis obvia, que en serverless cada invocacion arranca con memoria nueva, resulto **falsa**. Un diagnostico temporal (cabecera `x-diag-contencion`, que quedo en el codigo detras de `DIAG_CONTENCION=1`) mostro lo siguiente en seis peticiones consecutivas desde la misma computadora:
+
+```
+#1 arranque=619522 clave=72.50.4.0/24
+#2 arranque=619522 clave=72.50.7.0/24
+#3 arranque=619522 clave=72.50.7.0/24
+...
+```
+
+El `arranque` es identico en las seis: **Vercel si reutiliza la instancia caliente y la memoria del modulo si se comparte.** Lo que cambiaba era la IP del cliente: `72.50.7.208`, `.238`, `.129`, `.129`, `.238`, `72.50.4.17`. El proveedor de internet saca el trafico por un pool de direcciones (CGNAT), asi que contar por IP exacta nunca acumula.
+
+Por eso el contador se lleva **por prefijo** (`/24` en IPv4, `/64` en IPv6) y no por IP. Con ese cambio el limite dispara en produccion, verificado, y devuelve `Retry-After`.
+
+**Lo que esto NO logra, dicho explicitamente para que nadie lo lea como resuelto.**
+
+- El pool observado abarca **varios** `/24` (`72.50.4`, `.5`, `.7`), asi que alguien decidido desde una red con CGNAT evade el limite rotando prefijos. No se amplio a `/22` o `/16` porque el falso positivo crece mas rapido que el beneficio: en el congreso, un salon entero comparte prefijo, y un 429 durante una demo cuesta mas que el abuso que se evitaria.
+- La cabecera `Origin` la puede falsificar cualquier cliente que no sea un navegador. Esto sube el costo de un abuso casual, no detiene a un atacante.
+- Cuando Vercel escala a varias instancias en paralelo, cada una lleva su conteo y el limite efectivo se multiplica.
+- **El unico limite duro sigue siendo el tope de gasto mensual en la consola de Anthropic, que a esta fecha sigue sin configurarse.** Esto es defensa en profundidad debajo de ese tope, no un sustituto.
+
+**Verificacion.** 41 chequeos locales, 0 fallos, incluyendo las seis IPs reales del pool como caso de prueba del agrupamiento. Se comprobo con **Chromium real** que un navegador si manda `Origin` (y `Referer`) en un POST al mismo dominio, que era el unico supuesto capaz de romper la app entera al desplegar. Contra produccion real: 403 sin origen, 403 con origen ajeno, 403 desde `example.com`, 413 sobre los topes, 429 al pasar el limite con `Retry-After`, y recorrido en navegador real donde `/api/generate` y `/api/search` devuelven 200 con contenido y DOIs reales, sin errores de JavaScript.
+
+**Aparte, dos correcciones de rastro:** el comentario de `generate.js` recomendaba `claude-opus-4-8` para maxima calidad; quedo desactualizado y se cambio a `claude-opus-5`, que cuesta lo mismo. Y `web/.env.example` documenta ahora las variables nuevas.

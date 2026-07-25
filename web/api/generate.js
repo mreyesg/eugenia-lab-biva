@@ -4,18 +4,28 @@
 // estructurados: así la clave no queda expuesta como un "Claude gratis" para
 // cualquiera que escanee el QR.
 
+import { aplicarContencion, tamanoExcedido } from "../lib/contencion.js";
+
 // Modelo configurable por variable de entorno. Por defecto Claude Sonnet 5:
 // buen balance de calidad, costo y latencia para una app pública en el teléfono.
-// Para máxima calidad, pon CLAUDE_MODEL=claude-opus-4-8 en Vercel.
+// Para máxima calidad, pon CLAUDE_MODEL=claude-opus-5 en Vercel. Antes esta nota decia
+// claude-opus-4-8; quedo desactualizada, Opus 5 cuesta lo mismo y es mejor. El analisis
+// de costo por tarea esta en lab/decision_log.md (2026-07-25), discutido y sin decidir.
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 
-// Tope de tamano del payload que el navegador puede enviar. Subido de 40000 a 150000 el
-// 2026-07-24, cuando search.js paso a conservar 2500 caracteres de abstract en vez de 900:
-// una referencia aceptada ocupa ahora ~2800 caracteres de JSON, asi que con 15 referencias
-// el payload de la MDE rondaba los 42000 y el tope viejo lo habria rechazado con un 413
-// justo al investigador que mas evidencia curo. Con 150000 caben ~50 referencias; en el
-// peor caso son unos 37000 tokens de entrada, holgado para el modelo.
-const MAX_PAYLOAD_CHARS = 150000;
+// Tope de tamano del payload que el navegador puede enviar.
+//
+// Historia, porque el numero se movio dos veces en dos dias: era 40000; subio a 150000 el
+// 2026-07-24, cuando search.js paso a conservar 2500 caracteres de abstract en vez de 900,
+// porque con 15 referencias el payload de la MDE rondaba los 42000 y el tope viejo lo
+// habria rechazado con un 413 justo al investigador que mas evidencia curo.
+//
+// Bajado a 80000 el 2026-07-25 como parte de la contencion de costo. 150000 era holgura
+// muy por encima de lo necesario, y toda esa holgura es texto que controla quien llama al
+// endpoint: es el amplificador que abarata montar un abuso. Con 80000 siguen cabiendo unas
+// 28 referencias con abstract completo, casi el doble del caso real mas cargado que se ha
+// medido. Ver docs/decisions.md (2026-07-25).
+const MAX_PAYLOAD_CHARS = 80000;
 
 function s(v) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
@@ -542,6 +552,10 @@ export default async function handler(req, res) {
     res.status(405).json({ error: "Metodo no permitido" });
     return;
   }
+  // Contencion antes que cualquier otra cosa: no gastar ni un viaje de red, ni un token,
+  // en una peticion que no viene de la app o que llega a un ritmo que ningun humano tiene.
+  if (!aplicarContencion(req, res)) return;
+
   if (!process.env.ANTHROPIC_API_KEY) {
     res.status(500).json({ error: "El servidor no tiene configurada la clave de la API." });
     return;
@@ -564,7 +578,7 @@ export default async function handler(req, res) {
     res.status(400).json({ error: "Tarea no reconocida" });
     return;
   }
-  if (JSON.stringify(payload).length > MAX_PAYLOAD_CHARS) {
+  if (tamanoExcedido(payload, MAX_PAYLOAD_CHARS)) {
     res.status(413).json({ error: "Los datos enviados son demasiado grandes." });
     return;
   }

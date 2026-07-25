@@ -20,9 +20,19 @@
 //     amplia). Al ser solo revistas de acceso abierto, falla justo en las búsquedas
 //     precisas, que son las que más importan aquí.
 
+import { aplicarContencion, tamanoExcedido } from "../lib/contencion.js";
+
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 const MAILTO = process.env.OPENALEX_MAILTO || "eugenia.lab@upr.edu";
 const MAX_RESULTS = 12;
+
+// Tope del cuerpo entero de la peticion. Anadido el 2026-07-25: este endpoint no tenia
+// ninguno, y era el hueco mas grande de los dos. El objeto `contexto` (tema, abstract,
+// problema, pregunta principal) va casi entero al prompt de generacion de consulta, asi
+// que sin tope cualquiera podia mandar megabytes de texto propio y hacerlos facturar.
+// 20000 caracteres es holgado: el caso real mas cargado (abstract largo pegado por el
+// investigador mas los cuatro campos de contexto) ronda los 4000.
+const MAX_BODY_CHARS = 20000;
 
 // Cuántos caracteres del abstract se conservan. Antes era 900.
 //
@@ -404,6 +414,9 @@ export default async function handler(req, res) {
     res.status(405).json({ error: "Metodo no permitido" });
     return;
   }
+  // Contencion antes que cualquier otra cosa. Ver web/lib/contencion.js.
+  if (!aplicarContencion(req, res)) return;
+
   if (!process.env.ANTHROPIC_API_KEY) {
     res.status(500).json({ error: "El servidor no tiene configurada la clave de la API." });
     return;
@@ -412,6 +425,10 @@ export default async function handler(req, res) {
   let body = req.body;
   if (typeof body === "string") {
     try { body = JSON.parse(body); } catch { res.status(400).json({ error: "Cuerpo invalido" }); return; }
+  }
+  if (tamanoExcedido(body, MAX_BODY_CHARS)) {
+    res.status(413).json({ error: "Los datos enviados son demasiado grandes." });
+    return;
   }
   const perspectiva = s(body && body.perspectiva);
   const queNecesito = s(body && body.que_necesito);

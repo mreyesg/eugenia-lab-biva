@@ -12,55 +12,54 @@ Este archivo es el protocolo *mecánico* que cualquier agente debe seguir al cer
 
 ## Última entrega
 
-**Fecha:** 2026-07-25 (sesión larga: cierre de la ponencia, y ronda de utilidad científica desplegada)
+**Fecha:** 2026-07-25 (segunda ronda del día: contención de costo en los endpoints públicos)
 **Quién:** sesión de Claude Code.
 
-Sesión en tres tramos, todos cerrados. Manuel pidió al final "un cierre limpio".
+Manuel preguntó cómo haría para que, si comparte la app con el mundo, cada usuario pague su propio gasto de IA. Al revisar el backend para responder apareció algo más urgente que el cobro, y él eligió atacar eso primero.
 
 ### Qué se hizo
 
-**1. Ponencia cerrada para imprenta.** Se cotejó si `presentation/` estaba en forma final: no lo estaba, tenía 4 marcadores PENDIENTE activos. La prueba en frío con Kamila **nunca llegó** y a Manuel se le agotó el tiempo de imprenta, así que se ataron los cabos con información real disponible (Fase C en producción, Fase D verificada, avance del compañero de defendibilidad) y los dos que no se podían atar (la prueba de Kamila y la sede de publicación) se reformularon de "en construcción" a **explícitamente diferidos**, en vez de dejar una promesa abierta sobre un resultado que no existe. Luego Manuel pidió **una segunda versión de tema visual más química**: se creó `presentation/src/build_presentation_quimico.js` (azul Prusia, teal de laboratorio, ámbar de mechero) que genera `Presentacion_Biblioteca_Viva_Quimico.pptx`, 25 slides, mismo contenido y layout. Ambas verificadas visualmente vía PowerPoint COM. Nota de mantenimiento: son dos scripts independientes que solo difieren en el bloque de paleta, así que **un cambio de contenido hay que aplicarlo en los dos**.
+**Los dos endpoints estaban abiertos.** `/api/generate` y `/api/search` no tenían autenticación, ni verificación de origen, ni límite de peticiones. Cualquiera con la URL podía llamarlos desde una terminal, sin pasar por la app, y el gasto lo pagaba la clave del proyecto. Los esquemas JSON y los prompts fijos impedían usarlos como un "Claude gratis" genérico, pero no impedían gastar dinero ajeno de forma automatizada. Ningún esquema de cobro arregla eso, así que la contención iba primero.
 
-**2. Se desplegó por fin lo que llevaba una semana construido y sin subir** (deployment `dpl_9XJdZzcjPU5pvLD4WhVit1zSAHTB`): pulido de Fase D, paso "Tus resultados" y auditoría de defendibilidad. Reverificado contra producción real: la garantía anti-alucinación se sostiene ahí, no solo en pruebas locales (cero señales ancladas a resultados propios cuando no se envían).
+Módulo nuevo `web/lib/contencion.js`, compartido por los dos endpoints y aplicado **antes de cualquier gasto**: verificación de `Origin`/`Referer` (403), límite de peticiones por prefijo de red con `Retry-After` (429), y tope de tamaño del cuerpo (413). En `generate.js` el tope bajó de 150000 a 80000; en `search.js` se **añadió** uno de 20000 que nunca había existido, y era el hueco más grande de los dos porque `contexto` va casi entero al prompt.
 
-**3. Ronda de utilidad científica** (deployment `dpl_EUvRiHiFuiZmadBmeJyLfXFJaRdr`, alias oficial re-apuntado automáticamente). Manuel pidió optimizar la app para investigación real y eligió hacer lo aditivo y de bajo riesgo antes del congreso. Cuatro cosas: exportación del corpus a **BibTeX/RIS/CSV**; **guardar y cargar el proyecto** como archivo (antes vivía solo en `localStorage` y se perdía al cambiar de dispositivo); **búsqueda auditable** (consulta visible y editable, filtros de año y tipo, resultados por base, registro persistente en `state.busquedas` y párrafo de métodos en el informe); y **Crossref** como tercera base, con tope de 8 a 12 resultados y abstracts de 900 a 2500 caracteres. Detalle en `docs/current-status.md` y `docs/decisions.md` (3 entradas del 2026-07-25).
+### El hallazgo de la ronda
+
+La primera versión del límite contaba por IP exacta y **no disparaba nunca en producción**: 70 peticiones en 17 segundos con tope de 60 por minuto pasaron todas, y bajando el tope a 2 tampoco. La hipótesis obvia, que en serverless cada invocación arranca con memoria nueva, resultó **falsa**. Un diagnóstico temporal (cabecera `x-diag-contencion`, que quedó en el código detrás de `DIAG_CONTENCION=1`) mostró el mismo identificador de arranque de módulo en peticiones consecutivas: Vercel sí reutiliza la instancia caliente. Lo que cambiaba era la IP del cliente. Seis peticiones seguidas desde la misma computadora llegaron con seis direcciones distintas (`72.50.7.208`, `.238`, `.129`, `.129`, `.238`, `72.50.4.17`), porque el proveedor de internet saca el tráfico por un pool CGNAT. El contador pasó a llevarse por **prefijo** (`/24` en IPv4, `/64` en IPv6) y con eso dispara, verificado en producción.
 
 ### Verificación
 
-- Contrato del motor contra las APIs reales (OpenAlex, Europe PMC, Crossref, Anthropic) invocando el handler real en Node: 30+ chequeos, 0 fallos. Frontend en contexto `vm` con DOM simulado: 60+ chequeos, 0 fallos. Contra producción tras desplegar: `/api/search` con las 3 bases, consulta manual respetada al pie de la letra, filtros efectivos, y un payload de 58033 caracteres aceptado que el tope viejo de 40000 habría rechazado con un 413. `bash scripts/verify.sh --network`: 0 fallos.
-- **Dos bugs reales encontrados por las pruebas, no por leer el código:**
-  1. **Corrupción de metadatos en la exportación.** Partir la cadena de autores por comas convertía un artículo de Crossref de un solo autor ("Abbey, Lord") en dos personas inexistentes en el `.bib`. Corregido guardando `autores_lista` estructurada desde las tres bases. Es el tipo de error que un gestor de referencias propaga en silencio a una bibliografía publicada.
-  2. **`oa: !!c.oa`** convertía "no se sabe" en "acceso cerrado" al guardar una referencia de Crossref, que no informa ese dato. Corregido a `null`, y verificado que ni el chip ni la recomendación de préstamo interbibliotecario se disparan con dato desconocido.
-- **Dos aserciones mías estaban mal escritas y las corregí en vez de tocar el producto:** una consulta con palabras reales aunque ajenas al tema sí devuelve artículos (comportamiento correcto de un buscador; lo que importa, y se verificó, es que la anotación los marque **todos** como tangenciales), y la regla de no usar guiones largos aplica al texto que redactamos, no a un título bibliográfico real que los contenga.
-- **QR verificado, no solo localizado:** se decodificó `poster/assets/qr-produccion.png` de vuelta y apunta a `https://web-beta-hazel-49.vercel.app`, el alias vigente. No hay que regenerarlo: apunta al alias de proyecto, no a un deployment concreto.
-- **Auditoría explícita de los principios anti-alucinación**, a pedido de Manuel al cierre: los seis cuidados originales verificados intactos en el código (anclaje obligatorio, declarar ausencia en vez de fabricar crítica, sin cuota de señales, no convertir ausencia en prueba de ausencia, lo ético como preguntas, y sin botón de IA donde no hay texto verificable del que partir).
+- 41 chequeos locales, 0 fallos, con las seis IPs reales del pool incorporadas como caso de prueba del agrupamiento.
+- **Con Chromium real** se comprobó que un navegador sí manda `Origin` (y `Referer`) en un POST al mismo dominio. Era el único supuesto capaz de romper la app entera al desplegar, así que se verificó antes y no después.
+- Contra producción real: 403 sin origen, 403 con origen ajeno, 403 desde `example.com`, 413 sobre los topes, 429 con `Retry-After: 59`, y recorrido en navegador real donde `/api/generate` y `/api/search` devuelven 200 con contenido y DOIs reales, sin errores de JavaScript.
+- `bash scripts/verify.sh --network`: 0 fallos.
+- **Tres aserciones/payloads míos estaban mal y los corregí en vez de tocar el producto:** la forma de la respuesta es `{result: ...}` y no `{opciones: ...}`; `buildFriccion` lee `payload.idea.tema` y no `payload.tema` (por eso una prueba devolvía 200 con el modelo quejándose de que faltaba el tema, y le añadí una aserción de contenido para que ese caso no vuelva a pasar por bueno); y un "control negativo" de origen estaba mal construido porque yo mismo había metido el origen en la lista permitida justo antes de comprobar que se rechazaba.
 
-### Qué quedó a medias
+### Qué NO queda resuelto
 
-- **Nada, en cuanto a versionado:** se comiteó todo en tres commits temáticos y se hizo push. Ver la nota de cierre abajo.
-- **Un hueco que esta sesión introdujo y dejó señalado:** el CSV exportado mezcla dato real con evaluación de IA sin marcarlo. Las columnas `ajuste` y `aporte_a_mi_investigacion` las escribió el modelo, y `resumen` puede ser extraído por IA si la referencia vino de un PDF, pero visualmente todo parece metadato de la fuente. Los `.bib` y `.ris` sí quedaron limpios (solo abstract real y procedencia factual). Arreglo propuesto y **no aplicado**: renombrar a `ia_ajuste_evaluado` / `ia_aporte_sugerido`, o añadir una columna de procedencia. Manuel lo sabe y no decidió todavía.
-- **Superficie cambiada y no reprobada:** subir los abstracts a 2500 caracteres afecta también a `notas`, `sintesis`, `borradores` y `auditoria`, y solo se hizo la prueba pareada con `mde`. Más texto de anclaje debería reducir el riesgo de alucinación, no subirlo, pero no se verificó, y `auditoria` es la tarea de mayor riesgo de la app.
-- **Afirmación retirada, importante para no reintroducirla:** se justificó subir el recorte de abstract diciendo que mejoraría la MDE, y la prueba pareada **no lo sostuvo** (6 y 6 valores cuantitativos con 900 y con 2500 caracteres). El comentario del código se corrigió para no dejar una justificación falsa que una sesión futura tomara como hecho. Lo que sí se midió, determinista sobre 36 abstracts reales: el límite viejo truncaba el 81% de ellos, descartaba el 43% del texto, y en el 41% de esos casos había valores numéricos que solo aparecían después del carácter 900.
-- El póster no se tocó. La prueba en frío de Kamila sigue sin ocurrir y ya se cerró la ponencia sin ella.
+Esto es defensa en profundidad, no un candado, y conviene no leerlo como más de lo que es:
+
+- El pool CGNAT observado abarca **varios** `/24`, así que alguien decidido evade el límite rotando prefijos. No se amplió a `/22` o `/16` porque el falso positivo crece más rápido que el beneficio: en el congreso un salón entero comparte prefijo, y un 429 durante una demo cuesta más que el abuso que se evitaría.
+- La cabecera `Origin` la falsifica cualquier cliente que no sea un navegador.
+- Al escalar a varias instancias en paralelo, cada una lleva su conteo y el tope efectivo se multiplica.
+- **El único límite duro sigue siendo el tope de gasto mensual en la consola de Anthropic, y sigue sin configurarse.** Solo Manuel puede hacerlo.
+
+### Sobre la pregunta original (cobro por usuario)
+
+Quedó discutida y **sin decidir**, a la espera de Manuel. Cuatro caminos con su costo real: que cada usuario ponga su propia llave, publicar el código para que cada cual lo despliegue, cuentas con cobro medido (que es construir un SaaS, con impuestos y soporte), o que lo pague la institución. La recomendación fue un híbrido: cuota gratuita con salida a llave propia para el congreso, y publicar el repositorio para "el mundo". Calibración que importa: 50 asistentes completando un proyecto cuestan unos 15 dólares, así que el uso orgánico es barato y el problema real nunca fue la escala.
 
 ### Próximo paso recomendado
 
-1. **Límite de gasto mensual en Anthropic** (solo Manuel, en la consola). Es el pendiente de mayor valor y el único con riesgo sin techo, porque el QR es público. Cobra más peso ahora: los abstracts más largos y el tope de 12 resultados suben el costo por búsqueda.
-2. **Recorrer producción en un teléfono físico real**, escaneando el QR. Es el pendiente más barato y con más valor antes del congreso, y las funciones nuevas (controles de búsqueda, botones de exportación) nunca se vieron en pantalla pequeña.
-3. Decidir el etiquetado de las columnas de IA en el CSV.
-4. Si se quiere blindar antes del congreso: correr las pruebas anti-alucinación de `auditoria` con abstracts de 2500 caracteres.
-5. **Modelo por tarea:** analizado con costos reales al cierre, sin decidir nada ni tocar código. Se puede probar sin código con `CLAUDE_MODEL=claude-opus-5` en Vercel. Ver `lab/decision_log.md` (2026-07-25) antes de re-derivarlo.
-6. **Después del congreso, el trabajo de fondo:** extracción estructurada de variables experimentales cuantitativas. Quedó descrita como un plan de 4 pasos con su riesgo principal identificado en `lab/roadmap.md` (alucinar un número es más peligroso que alucinar texto, porque es indistinguible a simple vista), en vez de una sola línea de intención.
+1. **Tope de gasto en Anthropic.** Es lo único que acota de verdad, y es lo único que no puede hacer un agente.
+2. **Recorrer producción en un teléfono físico** escaneando el QR. Sigue pendiente y sigue siendo lo más barato con más valor antes del congreso.
+3. Decidir el modelo de cobro si de verdad se va a compartir con el mundo.
+4. Lo demás no cambió: etiquetado de las columnas de IA en el CSV, modelo por tarea (analizado, sin decidir), y después del congreso la extracción cuantitativa de variables.
 
-### Nota de cierre
+---
 
-Manuel pidió cerrar por hoy. **Todo quedó comiteado y con push a `origin/master`**, en tres commits temáticos que separan los tres tramos de la sesión: `7f8be01` (ponencia: cierre para imprenta y versión de tema químico), `4248303` (utilidad científica: interoperabilidad, búsqueda auditable y Crossref) y `7e7a47b` (documentación, decisiones medidas y plan post-congreso). El árbol quedó limpio.
+**Registro anterior: 2026-07-25 (cierre de la ponencia y ronda de utilidad científica)**
+**Quién:** sesión de Claude Code. Tres tramos: ponencia cerrada para imprenta sin la prueba de Kamila (que no llegó a tiempo) más una segunda versión de tema químico; despliegue de lo que llevaba una semana construido sin subir (Fase D, "Tus resultados" y auditoría de defendibilidad); y una ronda de utilidad científica (BibTeX/RIS/CSV, guardar y cargar el proyecto, búsqueda auditable con párrafo de métodos, y Crossref como tercera base). Dos bugs reales encontrados por las pruebas: corrupción de la lista de autores en la exportación, y `oa: !!c.oa` convirtiendo "no se sabe" en "acceso cerrado". Comiteado en tres commits temáticos con push. Detalle en `docs/current-status.md` y `docs/decisions.md` (entradas 2026-07-25).
 
-Al final, ya sin cambios de código, se discutió a pedido de Manuel si convendría usar un modelo más capaz en algunas secciones sin encarecer la app. **Se hizo el análisis con precios reales y no se decidió nada**; quedó registrado en `lab/decision_log.md` (2026-07-25) para no re-derivarlo, con la conclusión de que el eje financiero que de verdad importa no es el modelo (unos veinte centavos por sesión) sino el límite de gasto que sigue sin configurarse.
-
-Los cambios de `presentation/` que ya venían sin comitear de una sesión anterior (numeración de comentarios de slides, y el conteo de 24 a 25 slides en el README) quedaron absorbidos en el trabajo de esta sesión, así que **la ambigüedad que la entrega del 2026-07-18 dejó anotada ya no aplica**: ese diff ahora es parte del cierre de la ponencia y no hay que decidir si descartarlo.
-
-**Ojo, lo importante:** lo desplegado a producción ya está live y **no depende del commit**. El repo va por detrás de producción hasta que se comitee, así que si otra máquina clona el repo hoy no reproduce lo que sirve el QR.
 ---
 
 **Registro anterior: 2026-07-18 (primer paso del compañero de defendibilidad)**

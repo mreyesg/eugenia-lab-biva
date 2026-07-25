@@ -11,6 +11,8 @@ Agenda y preparación para la próxima sesión de trabajo.
 - **Búsqueda auditable:** se ve la consulta que se ejecutó y su origen, se puede reescribir, filtrar por año y por tipo de documento, y se ve cuántos resultados dio cada base. Cada búsqueda queda registrada y el informe trae un **párrafo de métodos listo para pegar** en un manuscrito.
 - **Tres bases de datos** (OpenAlex, Europe PMC y Crossref), 12 resultados por búsqueda en vez de 8, y abstracts completos en vez de cortados a la mitad.
 
+**Contención de costo, desplegada el 2026-07-25.** Los endpoints `/api/generate` y `/api/search` ya no están abiertos: rechazan lo que no venga del dominio de la app (403), limitan el ritmo por prefijo de red (429 con `Retry-After`) y topan el tamaño del cuerpo (413). Antes de esto, cualquiera con la URL podía llamarlos desde una terminal y el gasto lo pagaba la clave del proyecto. Si alguien reporta un 429 usando la app con normalidad, la perilla es `LIMITE_POR_MINUTO` en Vercel, sin tocar código. Para depurar por qué el límite no dispara, `DIAG_CONTENCION=1` añade una cabecera de diagnóstico a cada respuesta.
+
 **El QR impreso sigue sirviendo sin cambios**, porque apunta al alias del proyecto y no a un despliegue concreto. Está en `poster/assets/qr-produccion.svg` (para impresión) y `.png` (para pantalla); se verificó decodificándolo.
 
 **La ponencia se cerró para imprenta sin la prueba de Kamila**, que no llegó a tiempo. Hay dos versiones de tema visual: botánica (`build_presentation.js`) y química (`build_presentation_quimico.js`). Ojo al mantenerlas: son dos scripts independientes que solo difieren en la paleta, así que un cambio de contenido va en los dos.
@@ -19,14 +21,14 @@ Agenda y preparación para la próxima sesión de trabajo.
 
 Próximos pasos, en orden:
 
-1. **Límite de gasto mensual en Anthropic** (solo Manuel, en la consola). Es el pendiente de mayor valor de todos y el único con riesgo sin techo: el QR es público. Cobra más peso ahora, porque abstracts más largos y 12 resultados por búsqueda suben el costo por uso.
+1. **Límite de gasto mensual en Anthropic** (solo Manuel, en la consola). Sigue siendo el pendiente de mayor valor y el único con riesgo sin techo. **Cobra más peso todavía después del 25 de julio:** se cerraron los tres huecos de contención que sí se pueden cerrar con código (origen, ritmo, tope de cuerpo), y lo que quedó demostrado en el proceso es que ninguno de los tres es un límite duro. El pool CGNAT del ISP permite evadir el límite por red rotando prefijos, y la cabecera `Origin` la falsifica cualquier cliente que no sea un navegador. **El tope de gasto es la única cota real que existe.** Ver `docs/decisions.md` (2026-07-25).
 2. **Escanear el QR con un teléfono físico real y recorrer la app.** El pendiente más barato con más valor antes del congreso: las funciones nuevas nunca se han visto en pantalla pequeña.
 3. **Modelo por tarea: discutido con números el 2026-07-25, sin decidir.** Se puede probar hoy sin tocar código poniendo `CLAUDE_MODEL=claude-opus-5` en Vercel. Si la diferencia se nota en la MDE y en la auditoría, el cambio por tarea son tres líneas, pero hay una trampa con `thinking: disabled` y los topes de `max_tokens`. Análisis completo, con costos y la trampa, en `lab/decision_log.md` (2026-07-25). No re-derivarlo.
 4. Decidir el etiquetado de las columnas generadas por IA en el CSV exportado (hoy `ajuste` y `aporte_a_mi_investigacion` no se distinguen del metadato real).
 5. **Congreso del Colegio de Químicos.** La MDE sigue siendo la función estrella; el registro de búsqueda y los exportadores son argumentos nuevos de credibilidad para la demo.
 6. **Después del congreso, el trabajo de fondo:** extracción estructurada de variables experimentales cuantitativas, la meta del semestre de Kamila. Es el techo real de la app: hoy la MDE se construye sobre prosa, no sobre una tabla de números. Plan de 4 pasos en `lab/roadmap.md`.
 
-Detalle completo en `docs/handoff.md` (entrada 2026-07-25), `docs/current-status.md` y `docs/decisions.md` (3 entradas del 2026-07-25).
+Detalle completo en `docs/handoff.md` (entrada 2026-07-25), `docs/current-status.md` y `docs/decisions.md` (4 entradas del 2026-07-25).
 
 ---
 
