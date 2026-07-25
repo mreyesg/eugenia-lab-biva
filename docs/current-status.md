@@ -86,7 +86,7 @@ Confirmado por inspección de código, no solo por lo que dice `lab/project_stat
 ## Pendientes activos
 
 - ~~**Poner los límites al Workspace `Biblioteca Viva`.**~~ **Hecho el 2026-07-25 por Manuel.** Workspace dedicado creado, llave de producción dentro de él, y límites puestos en su pestaña **Limits** (incluido dejar en el mínimo la Batch API, que la app no usa: solo llama a `/v1/messages`, confirmado por inspección del código). Verificado después de ponerlos con un recorrido completo en navegador real contra producción, sin ningún 429, así que están calibrados con holgura suficiente para el congreso. Esta es la cota dura que la contención por código no podía dar: la aplica Anthropic del lado del servidor, inmune al CGNAT y al escalado de Vercel.
-- **Revocar la llave anterior** en console.anthropic.com, una vez Manuel confirme que ninguna de sus otras tres apps la estaba usando. La nueva ya está verificada en producción, así que revocar la vieja no causa interrupción.
+- ~~Revocar la llave anterior en console.anthropic.com.~~ **Hecho el 2026-07-25 por Manuel.** Verificado después de revocar: recorrido completo en navegador real contra producción sin fallos, y la llave de `web/.env.local` (la de `vercel dev`) responde HTTP 200 contra la API. Ninguna otra app dependía de la vieja. **Segunda rotación cerrada del todo.**
 - Considerar si `friccion`, `pregunta` y `notas` (que se quedaron en el `maxTokens` default de 1600) necesitan el mismo margen que se le dio a `mapa` y `divulgacion`; por ahora no se ha visto evidencia de que trunquen, pero tampoco se probaron a fondo en esta ronda.
 - Decidir si se despliega ya la Fase D (primera pasada de pulido de lenguaje, comiteada el 2026-07-18, verificada, no desplegada) o se agrupa con el siguiente cambio.
 
