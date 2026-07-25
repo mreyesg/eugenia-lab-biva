@@ -15,11 +15,13 @@ Agenda y preparación para la próxima sesión de trabajo.
 
 **La ponencia se cerró para imprenta sin la prueba de Kamila**, que no llegó a tiempo. Hay dos versiones de tema visual: botánica (`build_presentation.js`) y química (`build_presentation_quimico.js`). Ojo al mantenerlas: son dos scripts independientes que solo difieren en la paleta, así que un cambio de contenido va en los dos.
 
+**Todo quedó comiteado y con push** (tres commits temáticos: ponencia, utilidad científica, documentación). El repo ya no va por detrás de producción.
+
 Próximos pasos, en orden:
 
-1. **Comitear el trabajo de esta sesión** (13 archivos sin comitear). El repo va por detrás de producción hasta entonces.
-2. **Escanear el QR con un teléfono físico real y recorrer la app.** Es el pendiente más barato y con más valor antes del congreso, y las funciones nuevas nunca se han visto en pantalla pequeña.
-3. **Límite de gasto mensual en Anthropic** (solo Manuel, en la consola). Cobra más peso ahora: abstracts más largos y 12 resultados por búsqueda suben el costo por uso.
+1. **Límite de gasto mensual en Anthropic** (solo Manuel, en la consola). Es el pendiente de mayor valor de todos y el único con riesgo sin techo: el QR es público. Cobra más peso ahora, porque abstracts más largos y 12 resultados por búsqueda suben el costo por uso.
+2. **Escanear el QR con un teléfono físico real y recorrer la app.** El pendiente más barato con más valor antes del congreso: las funciones nuevas nunca se han visto en pantalla pequeña.
+3. **Modelo por tarea: discutido con números el 2026-07-25, sin decidir.** Se puede probar hoy sin tocar código poniendo `CLAUDE_MODEL=claude-opus-5` en Vercel. Si la diferencia se nota en la MDE y en la auditoría, el cambio por tarea son tres líneas, pero hay una trampa con `thinking: disabled` y los topes de `max_tokens`. Análisis completo, con costos y la trampa, en `lab/decision_log.md` (2026-07-25). No re-derivarlo.
 4. Decidir el etiquetado de las columnas generadas por IA en el CSV exportado (hoy `ajuste` y `aporte_a_mi_investigacion` no se distinguen del metadato real).
 5. **Congreso del Colegio de Químicos.** La MDE sigue siendo la función estrella; el registro de búsqueda y los exportadores son argumentos nuevos de credibilidad para la demo.
 6. **Después del congreso, el trabajo de fondo:** extracción estructurada de variables experimentales cuantitativas, la meta del semestre de Kamila. Es el techo real de la app: hoy la MDE se construye sobre prosa, no sobre una tabla de números. Plan de 4 pasos en `lab/roadmap.md`.

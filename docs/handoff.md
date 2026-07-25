@@ -37,7 +37,7 @@ Sesión en tres tramos, todos cerrados. Manuel pidió al final "un cierre limpio
 
 ### Qué quedó a medias
 
-- **Nada comiteado.** Ver la nota de cierre abajo.
+- **Nada, en cuanto a versionado:** se comiteó todo en tres commits temáticos y se hizo push. Ver la nota de cierre abajo.
 - **Un hueco que esta sesión introdujo y dejó señalado:** el CSV exportado mezcla dato real con evaluación de IA sin marcarlo. Las columnas `ajuste` y `aporte_a_mi_investigacion` las escribió el modelo, y `resumen` puede ser extraído por IA si la referencia vino de un PDF, pero visualmente todo parece metadato de la fuente. Los `.bib` y `.ris` sí quedaron limpios (solo abstract real y procedencia factual). Arreglo propuesto y **no aplicado**: renombrar a `ia_ajuste_evaluado` / `ia_aporte_sugerido`, o añadir una columna de procedencia. Manuel lo sabe y no decidió todavía.
 - **Superficie cambiada y no reprobada:** subir los abstracts a 2500 caracteres afecta también a `notas`, `sintesis`, `borradores` y `auditoria`, y solo se hizo la prueba pareada con `mde`. Más texto de anclaje debería reducir el riesgo de alucinación, no subirlo, pero no se verificó, y `auditoria` es la tarea de mayor riesgo de la app.
 - **Afirmación retirada, importante para no reintroducirla:** se justificó subir el recorte de abstract diciendo que mejoraría la MDE, y la prueba pareada **no lo sostuvo** (6 y 6 valores cuantitativos con 900 y con 2500 caracteres). El comentario del código se corrigió para no dejar una justificación falsa que una sesión futura tomara como hecho. Lo que sí se midió, determinista sobre 36 abstracts reales: el límite viejo truncaba el 81% de ellos, descartaba el 43% del texto, y en el 41% de esos casos había valores numéricos que solo aparecían después del carácter 900.
@@ -45,16 +45,18 @@ Sesión en tres tramos, todos cerrados. Manuel pidió al final "un cierre limpio
 
 ### Próximo paso recomendado
 
-1. **Decidir el commit** (13 archivos, ver nota de cierre) y si se hace push. El repo va por detrás de producción hasta entonces.
+1. **Límite de gasto mensual en Anthropic** (solo Manuel, en la consola). Es el pendiente de mayor valor y el único con riesgo sin techo, porque el QR es público. Cobra más peso ahora: los abstracts más largos y el tope de 12 resultados suben el costo por búsqueda.
 2. **Recorrer producción en un teléfono físico real**, escaneando el QR. Es el pendiente más barato y con más valor antes del congreso, y las funciones nuevas (controles de búsqueda, botones de exportación) nunca se vieron en pantalla pequeña.
 3. Decidir el etiquetado de las columnas de IA en el CSV.
 4. Si se quiere blindar antes del congreso: correr las pruebas anti-alucinación de `auditoria` con abstracts de 2500 caracteres.
-5. Higiene: sigue pendiente el **límite de gasto mensual en Anthropic** (solo Manuel, en la consola). Cobra más peso ahora: los abstracts más largos y el tope de 12 resultados suben el costo por búsqueda.
+5. **Modelo por tarea:** analizado con costos reales al cierre, sin decidir nada ni tocar código. Se puede probar sin código con `CLAUDE_MODEL=claude-opus-5` en Vercel. Ver `lab/decision_log.md` (2026-07-25) antes de re-derivarlo.
 6. **Después del congreso, el trabajo de fondo:** extracción estructurada de variables experimentales cuantitativas. Quedó descrita como un plan de 4 pasos con su riesgo principal identificado en `lab/roadmap.md` (alucinar un número es más peligroso que alucinar texto, porque es indistinguible a simple vista), en vez de una sola línea de intención.
 
 ### Nota de cierre
 
-Manuel pidió cerrar por hoy. **Árbol de trabajo con 13 archivos sin comitear** (11 modificados, 2 nuevos), porque no se pidió comitear en ningún momento: `docs/current-status.md`, `docs/decisions.md`, `docs/module-map.md`, `docs/handoff.md`, `lab/decision_log.md`, `lab/roadmap.md`, `lab/next_session.md`, `presentation/` (3 modificados + 2 nuevos) y `web/` (`index.html`, `api/search.js`, `api/generate.js`).
+Manuel pidió cerrar por hoy. **Todo quedó comiteado y con push a `origin/master`**, en tres commits temáticos que separan los tres tramos de la sesión: `7f8be01` (ponencia: cierre para imprenta y versión de tema químico), `4248303` (utilidad científica: interoperabilidad, búsqueda auditable y Crossref) y `7e7a47b` (documentación, decisiones medidas y plan post-congreso). El árbol quedó limpio.
+
+Al final, ya sin cambios de código, se discutió a pedido de Manuel si convendría usar un modelo más capaz en algunas secciones sin encarecer la app. **Se hizo el análisis con precios reales y no se decidió nada**; quedó registrado en `lab/decision_log.md` (2026-07-25) para no re-derivarlo, con la conclusión de que el eje financiero que de verdad importa no es el modelo (unos veinte centavos por sesión) sino el límite de gasto que sigue sin configurarse.
 
 Los cambios de `presentation/` que ya venían sin comitear de una sesión anterior (numeración de comentarios de slides, y el conteo de 24 a 25 slides en el README) quedaron absorbidos en el trabajo de esta sesión, así que **la ambigüedad que la entrega del 2026-07-18 dejó anotada ya no aplica**: ese diff ahora es parte del cierre de la ponencia y no hay que decidir si descartarlo.
 
