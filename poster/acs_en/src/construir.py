@@ -89,6 +89,18 @@ escribir(por_id(9),
 por_id(8).width = Inches(28.0); por_id(8).height = Inches(1.7)
 por_id(9).width = Inches(28.5); por_id(9).top = Inches(1.95); por_id(9).height = Inches(1.0)
 
+# Logo institucional. Es cuadrado (900x900), asi que se coloca a escala 1:1
+# dentro del recuadro de logos de la plantilla, sin deformarlo.
+LOGO = "logo_upr.jpg"
+if os.path.exists(LOGO):
+    borrar(11)  # el marcador de texto "UPR-RP LOGO"
+    lado = 1.9
+    sl.shapes.add_picture(LOGO, Inches(30.75), Inches(0.7), Inches(lado), Inches(lado))
+    ac = por_id(12)  # "ACS PR LOGO", se corre al lado para no quedar debajo del logo
+    if ac is not None:
+        ac.left, ac.top, ac.width = Inches(32.85), Inches(1.25), Inches(2.4)
+        escribir(ac, "ACS PR LOGO", tam=20, color=GRIS, espacio=0)
+
 # ---------- BARRA IZQUIERDA ----------
 escribir(por_id(13), "Overview", tam=46, color=MORADO, bold=True, espacio=0)
 escribir(por_id(14),

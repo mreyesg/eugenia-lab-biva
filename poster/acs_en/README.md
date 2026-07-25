@@ -41,7 +41,8 @@ habilite: ese ya esta habilitado desde antes.
 
 ## Pendiente, solo Manuel
 
-- **Logos.** Siguen como marcadores de texto ("UPR-RP LOGO", "ACS PR LOGO").
+- **Logo de ACS.** Sigue como marcador de texto. El de la UPR ya esta incorporado
+  (`src/logo_upr.jpg`, cuadrado 900x900, colocado a escala 1:1 para no deformarlo).
 - **Referencias.** Hay una nota honesta sobre bases de datos y disponibilidad de
   datos, no una lista numerada. No se inventaron referencias.
 - **Idioma de las figuras.** La app corre en espanol, asi que las capturas muestran
