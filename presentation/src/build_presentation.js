@@ -432,11 +432,11 @@ contentSlide({
   bullets: [
     { text: "Fase A, completa", sub: "Motor de búsqueda enriquecido con señales de calidad y ajuste, y la Matriz de Decisión como función estrella." },
     { text: "Fase B, completa", sub: "Síntesis trazable de consenso, contradicción y brecha, e informe de evidencia exportable." },
-    { text: "Fase C, en curso", sub: "Salidas orientadas a publicación: tabla comparativa y borradores citados de justificación, métodos y discusión." },
-    { text: "Fase D, pendiente", sub: "Pulido de lenguaje y consistencia en toda la app." }
+    { text: "Fase C, en producción", sub: "Tabla comparativa, borradores citados por sección y estilos de cita (APA, ACS, Vancouver), desplegados el 18 de julio de 2026." },
+    { text: "Fase D, primera pasada hecha", sub: "Corrección de lenguaje verificada; falta desplegarla y una relectura humana antes del congreso." }
   ],
   bulletsSize: 14.5,
-  pend: "Actualizar el estado de las fases C y D a medida que avancen; hoy la versión desplegada llega hasta el informe de evidencia inicial."
+  pend: "Estado al cierre de esta ronda (18 de julio de 2026): Fase C ya en producción, Fase D verificada y pendiente de desplegar antes del congreso."
 });
 
 // ============================================================================
@@ -468,7 +468,7 @@ contentSlide({
     "La extracción desde PDF se probó con un artículo con texto real y con un PDF sin texto: el segundo se detiene limpio, sin gastar una llamada a la IA."
   ],
   bulletsSize: 15.5,
-  pend: "Falta la validación más importante: una prueba en frío con una estudiante usando la app sola, sin guía, para ver qué logra y dónde se pierde. Incluir aquí esos resultados cuando existan."
+  pend: "La prueba en frío con una estudiante, sin guía, no se completó a tiempo para esta presentación. Queda como la validación más importante, diferida al próximo ciclo."
 });
 
 // ============================================================================
@@ -489,7 +489,7 @@ sectionDivider("06", "Limitaciones y fortalezas", "Lo que no funcionaba al inici
     ["Artículos de acceso cerrado quedaban invisibles en la práctica", "Señal explícita de acceso cerrado, con recomendación de conseguir el artículo manualmente"],
     ["Un PDF propio entraba mudo al análisis, sin resumen", "Subir el PDF y extraer título, autores, año y resumen para que participe igual que una fuente encontrada"],
     ["Respuestas de IA que podían truncarse", "Topes de tamaño por tarea y un control que falla limpio en vez de mostrar texto incompleto"],
-    ["Sin validación con un usuario real todavía", "Prueba en frío con una estudiante, como validación pendiente y prioritaria"]
+    ["Sin validación con un usuario real todavía", "Identificada como la validación más importante; no se completó a tiempo para esta presentación, queda diferida al próximo ciclo"]
   ];
   s.addTable(rows, {
     x: MX, y: 2.35, w: W - MX * 2, h: 4.0,
@@ -523,7 +523,7 @@ contentSlide({
 // ============================================================================
 sectionDivider("07", "Hacia una publicación", "La diferenciación que sostiene el proyecto, el trabajo futuro y lo que deja como aporte generalizable.");
 
-// SLIDE: Posicionamiento / diferenciación
+// SLIDE 22: Posicionamiento / diferenciación
 contentSlide({
   kicker: "Diferenciación",
   title: "No es un buscador de papers",
@@ -536,10 +536,10 @@ contentSlide({
   ],
   bulletsSize: 15.5,
   bulletsH: 2.1,
-  pend: "El insumo de \"tus propios resultados\" y la auditoría de defendibilidad por dimensiones son la dirección en construcción; hoy existen sus semillas en la síntesis y el reenfoque."
+  pend: "El insumo de \"tus propios resultados\" y la auditoría de defendibilidad ya están construidos y verificados (18 de julio de 2026); falta aprobación visual y despliegue."
 });
 
-// SLIDE 22: Trabajo futuro
+// SLIDE 23: Trabajo futuro
 contentSlide({
   kicker: "Qué sigue",
   title: "Trabajo futuro",
@@ -550,10 +550,10 @@ contentSlide({
     "Escalar la herramienta a otras disciplinas más allá del caso de química."
   ],
   bulletsSize: 16,
-  pend: "Definir la sede o revista de la publicación metodológica sobre desarrollo de apps de IA para la investigación, y ajustar el enfoque de esta ponencia a esa audiencia."
+  pend: "La sede o revista de la publicación metodológica queda por definir; es trabajo posterior al congreso, no bloquea esta presentación."
 });
 
-// SLIDE 23: Lecciones
+// SLIDE 24: Lecciones
 contentSlide({
   kicker: "Aporte generalizable",
   title: "Lecciones para apps de IA en investigación",
@@ -569,7 +569,7 @@ contentSlide({
 });
 
 // ============================================================================
-// SLIDE 24: CIERRE
+// SLIDE 25: CIERRE
 // ============================================================================
 (function closingSlide() {
   const s = newSlide(FOREST);
