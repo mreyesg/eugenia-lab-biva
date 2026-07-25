@@ -9,7 +9,13 @@
 // Para máxima calidad, pon CLAUDE_MODEL=claude-opus-4-8 en Vercel.
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 
-const MAX_PAYLOAD_CHARS = 40000;
+// Tope de tamano del payload que el navegador puede enviar. Subido de 40000 a 150000 el
+// 2026-07-24, cuando search.js paso a conservar 2500 caracteres de abstract en vez de 900:
+// una referencia aceptada ocupa ahora ~2800 caracteres de JSON, asi que con 15 referencias
+// el payload de la MDE rondaba los 42000 y el tope viejo lo habria rechazado con un 413
+// justo al investigador que mas evidencia curo. Con 150000 caben ~50 referencias; en el
+// peor caso son unos 37000 tokens de entrada, holgado para el modelo.
+const MAX_PAYLOAD_CHARS = 150000;
 
 function s(v) {
   return typeof v === "string" ? v : v == null ? "" : String(v);

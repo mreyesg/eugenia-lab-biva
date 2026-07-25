@@ -349,7 +349,17 @@ const STORAGE_KEY = "biblioteca_viva_project";
 let state = null;
 let loading = false;
 // Resultados de busqueda de articulos (transitorios, no se guardan en localStorage).
-let searchState = { activo: null, resultados: {}, error: {} };
+// "meta" guarda, por componente, la consulta que se uso de verdad y que devolvio cada
+// base, para poder mostrarlo y registrarlo. Ver state.busquedas para el registro que si
+// se persiste.
+let searchState = { activo: null, resultados: {}, error: {}, meta: {} };
+// Ajustes de busqueda que el investigador puede editar por componente (transitorios).
+// "query" vacia significa "que la escriba EugenIA"; con texto, se usa tal cual.
+let searchControls = {};
+function getSearchControls(key){
+  if(!searchControls[key]) searchControls[key] = { query: "", desdeAnio: "", tipo: "", abierto: false };
+  return searchControls[key];
+}
 // Borrador de la ficha de lectura en construcción (transitorio, no se guarda en localStorage).
 let notaDraft = { refIdx: 0, idea: "", conceptos: "", relacion: "" };
 // Borrador de una referencia manual, prellenado por extracción de PDF o escrito a mano
@@ -381,6 +391,10 @@ function defaultProject(){
     pregunta: {problema:"", pregunta_principal:"", preguntas_secundarias:["",""], objetivo_general:"", objetivos_especificos:["",""], delimitaciones:""},
     mapa: [],
     bibliografia: [],
+    // Registro de cada busqueda ejecutada: fecha, componente, consulta exacta, bases
+    // consultadas y cuantos resultados dio cada una. Es lo que permite reconstruir
+    // despues como se armo el corpus, y alimenta el parrafo de metodos del informe.
+    busquedas: [],
     reenfoque: null,
     mde: [],
     sintesis: [],
@@ -404,6 +418,17 @@ function migrateState(){
   for(const k in def.idea){
     if(state.idea[k] === undefined) state.idea[k] = def.idea[k];
   }
+  // Saneamiento de los dos campos que gobiernan el render. Un proyecto cargado desde un
+  // archivo (o un localStorage viejo) puede traer un "step" fuera de rango, y renderHeader
+  // hace STAGES[state.step].label: con un valor invalido la app se queda en blanco sin
+  // explicacion. Aqui se acota en vez de confiar en el dato.
+  const step = parseInt(state.step, 10);
+  state.step = (Number.isInteger(step) && step >= -1 && step < STAGES.length) ? step : -1;
+  if(state.mode !== "investigador" && state.mode !== "guiado") state.mode = "guiado";
+  // Estas tres siempre deben ser arreglos: el resto del codigo las recorre sin comprobar.
+  ["bibliografia","busquedas","mapa","mde","sintesis","resultadosPropios","notas"].forEach(k=>{
+    if(!Array.isArray(state[k])) state[k] = [];
+  });
 }
 
 function loadState(){
@@ -889,8 +914,8 @@ function renderBibliografia(){
   ` : `
     <div class="ai-badge">${AI_ICON} Resultados científicos evaluados por EugenIA</div>
     <div class="card tint" style="padding:14px;margin-bottom:12px;">
-      <p style="font-size:13.5px;margin:0 0 7px 0;"><b>Fuentes consultadas directamente:</b> OpenAlex y Europe PMC.</p>
-      <p style="font-size:12.5px;color:var(--ink-soft);margin:0;">OpenAlex reúne metadatos de múltiples proveedores, entre ellos Crossref y PubMed, pero Biblioteca Viva no consulta Crossref ni PubMed por separado. Scopus, Web of Science y Google Scholar todavía no están integrados.</p>
+      <p style="font-size:13.5px;margin:0 0 7px 0;"><b>Fuentes consultadas directamente:</b> OpenAlex, Europe PMC y Crossref.</p>
+      <p style="font-size:12.5px;color:var(--ink-soft);margin:0;">Las tres se consultan en paralelo y sus resultados se intercalan y deduplican por DOI, así que ninguna domine. Europe PMC ya indexa MEDLINE y PubMed, por eso no se consulta PubMed por separado. Scopus, Web of Science y Google Scholar todavía no están integrados.</p>
     </div>
     <p style="font-size:13.5px;color:var(--ink-soft);margin:0 0 12px 0;">Busca artículos reales para apoyar cada componente del trabajo. EugenIA evalúa su ajuste al proyecto; tú decides cuáles aceptar.</p>
     ${mapa.map((m,i)=>renderPerspectivaBusqueda(m,i)).join("")}
@@ -1050,11 +1075,72 @@ function signalChips(r){
   return chipsHtml + avisoCerrado;
 }
 
+// Muestra que consulta se ejecuto de verdad y que devolvio cada base. Es la pieza que
+// vuelve la busqueda auditable: sin esto el investigador no puede saber ni repetir lo que
+// la app busco en su nombre.
+function renderQueryUsada(meta){
+  if(!meta) return "";
+  const origen = meta.query_origen === "manual"
+    ? "escrita por ti"
+    : "generada por EugenIA a partir de tu proyecto";
+  const bases = Object.entries(meta.por_base || {}).map(([nombre, n])=>{
+    if(n === null) return `<span class="chip" style="background:#F3E4E4;color:#8A3B3B;">${escapeHtml(nombre)}: no respondió</span>`;
+    return `<span class="chip" style="background:#E2EDF3;color:#31566B;">${escapeHtml(nombre)}: ${n}</span>`;
+  }).join("");
+  const f = meta.filtros || {};
+  const filtros = [];
+  if(f.desde_anio) filtros.push("desde " + f.desde_anio);
+  if(f.tipo === "revision") filtros.push("solo revisiones");
+  if(f.tipo === "primario") filtros.push("sin revisiones");
+  return `
+    <div style="background:var(--soft);border-radius:10px;padding:10px 12px;margin-top:10px;">
+      <p style="font-size:12.5px;margin:0 0 4px 0;"><b>Consulta usada</b> (${escapeHtml(origen)}):</p>
+      <p style="font-size:12.5px;font-family:ui-monospace,Consolas,monospace;margin:0 0 6px 0;word-break:break-word;">${escapeHtml(meta.query||"")}</p>
+      ${meta.query_ampliada ? `<p class="hint" style="margin:0 0 6px 0;">Daba pocos resultados, así que también se probó una consulta más amplia: <b>${escapeHtml(meta.query_ampliada)}</b></p>` : ""}
+      ${filtros.length ? `<p class="hint" style="margin:0 0 6px 0;">Filtros aplicados: ${escapeHtml(filtros.join(", "))}${meta.descartados_por_tipo ? " (" + meta.descartados_por_tipo + " descartados por tipo)" : ""}</p>` : ""}
+      <div>${bases}</div>
+    </div>`;
+}
+
+// Panel para que el investigador tome el control de la busqueda: reescribir la consulta,
+// acotar por anio y por tipo de documento. Sin esto la busqueda es una caja negra.
+function renderAjustesBusqueda(key, i){
+  const c = getSearchControls(key);
+  if(!c.abierto){
+    return `<button class="small-btn toggle-ajustes" data-key="${escapeAttr(key)}" type="button" style="margin-top:8px;">Ajustar la búsqueda</button>`;
+  }
+  return `
+    <div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;">
+      <label style="font-size:12.5px;">Consulta (déjala vacía para que EugenIA la escriba)</label>
+      <input type="text" class="ajuste-query" data-key="${escapeAttr(key)}" value="${escapeAttr(c.query)}" placeholder="ej: Plectranthus amboinicus ethanol extraction phenolic">
+      <div class="field-row" style="margin-top:8px;">
+        <div>
+          <label style="font-size:12.5px;">Desde el año</label>
+          <input type="number" class="ajuste-anio" data-key="${escapeAttr(key)}" value="${escapeAttr(c.desdeAnio)}" placeholder="ej: 2015" min="1800" max="2100">
+        </div>
+        <div>
+          <label style="font-size:12.5px;">Tipo</label>
+          <select class="ajuste-tipo" data-key="${escapeAttr(key)}">
+            <option value=""${c.tipo===""?" selected":""}>Todos</option>
+            <option value="revision"${c.tipo==="revision"?" selected":""}>Solo revisiones</option>
+            <option value="primario"${c.tipo==="primario"?" selected":""}>Sin revisiones</option>
+          </select>
+        </div>
+      </div>
+      <p class="hint" style="margin:8px 0 0 0;">Si escribes tu propia consulta, se usa exactamente esa: EugenIA no la reformula ni la amplía por su cuenta, para que puedas repetir la misma búsqueda después.</p>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="small-btn toggle-ajustes" data-key="${escapeAttr(key)}" type="button" style="flex:1;">Cerrar</button>
+        <button class="small-btn buscar-btn" data-idx="${i}" type="button" style="flex:1;background:var(--moss);color:#fff;border-color:var(--moss);">Buscar con estos ajustes</button>
+      </div>
+    </div>`;
+}
+
 function renderPerspectivaBusqueda(m, i){
   const key = m.perspectiva;
   const buscando = searchState.activo === key;
   const res = searchState.resultados[key];
   const err = searchState.error[key];
+  const meta = searchState.meta[key];
   return `
   <div class="card">
     <h3 style="font-size:15px;">${escapeHtml(m.perspectiva)}</h3>
@@ -1062,8 +1148,10 @@ function renderPerspectivaBusqueda(m, i){
     ${buscando
       ? `<div class="loading"><div class="spinner"></div> Buscando artículos reales…</div>`
       : `<button class="btn ${res?'btn-ghost':'btn-accent'} buscar-btn" data-idx="${i}" style="width:100%;">${res?'Buscar otra vez':'Buscar artículos'}</button>`}
+    ${buscando ? "" : renderAjustesBusqueda(key, i)}
     ${err ? `<p class="hint" style="color:var(--danger);">${escapeHtml(err)}</p>` : ""}
-    ${(res && res.length===0) ? `<p class="hint">No se encontraron artículos. Prueba a afinar tu tema o pregunta.</p>` : ""}
+    ${renderQueryUsada(meta)}
+    ${(res && res.length===0) ? `<p class="hint">No se encontraron artículos con esta consulta. Prueba a reescribirla en "Ajustar la búsqueda", o a soltar los filtros.</p>` : ""}
     ${(res && res.length>0) ? res.map((c,j)=>renderCandidato(key,c,j)).join("") : ""}
   </div>`;
 }
@@ -1088,6 +1176,7 @@ async function buscarArticulos(i){
   const m = state.mapa[i];
   if(!m) return;
   const key = m.perspectiva;
+  const ctrl = getSearchControls(key);
   searchState.activo = key;
   searchState.error[key] = null;
   render();
@@ -1098,6 +1187,9 @@ async function buscarArticulos(i){
       body: JSON.stringify({
         perspectiva: m.perspectiva,
         que_necesito: m.que_necesito,
+        query: ctrl.query || "",
+        desde_anio: ctrl.desdeAnio || "",
+        tipo: ctrl.tipo || "",
         contexto: {
           tema: state.idea.tema,
           abstract: state.idea.abstract,
@@ -1113,6 +1205,29 @@ async function buscarArticulos(i){
     }
     const data = await resp.json();
     searchState.resultados[key] = data.resultados || [];
+    searchState.meta[key] = {
+      query: data.query || "",
+      query_origen: data.query_origen || "",
+      query_ampliada: data.query_ampliada || "",
+      por_base: data.por_base || {},
+      filtros: data.filtros || {},
+      total_encontrado: data.total_encontrado || 0,
+      descartados_por_tipo: data.descartados_por_tipo || 0
+    };
+    // Registro persistente de la busqueda. Se guarda cada corrida, no solo la ultima:
+    // reconstruir como se armo el corpus exige saber tambien lo que se probo y descarto.
+    state.busquedas.push({
+      fecha: new Date().toISOString(),
+      componente: key,
+      query: data.query || "",
+      query_origen: data.query_origen || "",
+      query_ampliada: data.query_ampliada || "",
+      por_base: data.por_base || {},
+      filtros: data.filtros || {},
+      total_encontrado: data.total_encontrado || 0,
+      mostrados: (data.resultados || []).length
+    });
+    saveState();
   }catch(e){
     console.error("Error buscando artículos:", e);
     searchState.error[key] = e.message || "No se pudo buscar. Inténtalo de nuevo.";
@@ -1128,12 +1243,18 @@ function agregarReferencia(c, perspectiva){
   state.bibliografia.push({
     titulo: c.titulo,
     autores: c.autores || "",
+    // Lista de autores tal como la entrego la base. Es lo que usan las exportaciones a
+    // BibTeX y RIS: partir la cadena "autores" seria ambiguo y podria inventar personas.
+    autores_lista: Array.isArray(c.autores_lista) ? c.autores_lista.slice() : [],
     anio: c.anio || "",
     justificacion: c.aporte || "",
     estado: "pendiente",
     doi: c.doi || "",
     url: c.url || "",
-    oa: !!c.oa,
+    // Se conserva null ("no se sabe") en vez de coercionar a false: Crossref no informa
+    // estado de acceso abierto, y guardarlo como false haria que la referencia se mostrara
+    // como "Acceso cerrado", afirmando algo que no podemos sostener.
+    oa: (typeof c.oa === "boolean") ? c.oa : null,
     citas: (typeof c.citas === "number") ? c.citas : null,
     revista: c.revista || "",
     tipo_doc: c.tipo_doc || "",
@@ -1181,6 +1302,24 @@ function attachBibliografiaHandlers(){
   });
   document.querySelectorAll(".buscar-btn").forEach(b=>{
     b.onclick = () => buscarArticulos(parseInt(b.dataset.idx));
+  });
+  // Controles de la busqueda. Se leen en vivo al escribir para que el valor sobreviva al
+  // re-render que dispara cualquier otro boton de la pantalla.
+  document.querySelectorAll(".toggle-ajustes").forEach(b=>{
+    b.onclick = () => {
+      const c = getSearchControls(b.dataset.key);
+      c.abierto = !c.abierto;
+      render();
+    };
+  });
+  document.querySelectorAll(".ajuste-query").forEach(el=>{
+    el.oninput = () => { getSearchControls(el.dataset.key).query = el.value; };
+  });
+  document.querySelectorAll(".ajuste-anio").forEach(el=>{
+    el.oninput = () => { getSearchControls(el.dataset.key).desdeAnio = el.value; };
+  });
+  document.querySelectorAll(".ajuste-tipo").forEach(el=>{
+    el.onchange = () => { getSearchControls(el.dataset.key).tipo = el.value; };
   });
   document.querySelectorAll(".add-cand").forEach(b=>{
     b.onclick = () => {
@@ -1810,8 +1949,20 @@ function showSummary(){
         <div class="divider"></div>
         <h3 style="font-size:15px;">Formato de divulgación</h3>
         <p>${escapeHtml(p.divulgacion.formato) || "(sin elegir)"}</p>
+        <div class="divider"></div>
+        <h3 style="font-size:15px;">Búsquedas registradas</h3>
+        <p>${(p.busquedas||[]).length} consulta(s) con su fecha, bases y filtros, en el informe de evidencia</p>
       </div>
       <button class="btn btn-accent" id="btnInforme" style="width:100%;margin-bottom:10px;">Abrir informe de evidencia</button>
+      <div class="card" style="margin-bottom:10px;">
+        <h3 style="font-size:15px;margin:0 0 4px 0;">Guardar o mover este proyecto</h3>
+        <p class="hint" style="margin:0 0 10px 0;">Tu progreso vive solo en este navegador y en este dispositivo. Descárgalo como archivo para respaldarlo, seguir en otra computadora o enviárselo a quien te asesora.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="small-btn" id="btnExportProyecto" type="button" style="flex:1;min-width:130px;">Descargar proyecto</button>
+          <button class="small-btn" id="btnImportProyectoTrigger" type="button" style="flex:1;min-width:130px;">Cargar proyecto</button>
+        </div>
+        <input type="file" id="importProyectoFile" accept="application/json,.json" style="display:none;">
+      </div>
       <button class="btn btn-ghost" id="btnVolverEditar" style="width:100%;margin-bottom:10px;">Volver a editar</button>
       <button class="btn btn-primary" id="btnNuevoProyecto" style="width:100%;">Empezar un proyecto nuevo</button>
     </main>
@@ -1822,6 +1973,14 @@ function showSummary(){
     goToStep(flow[flow.length-1]);
   };
   document.getElementById("btnNuevoProyecto").onclick = resetProject;
+  document.getElementById("btnExportProyecto").onclick = exportarProyecto;
+  const inputImport = document.getElementById("importProyectoFile");
+  document.getElementById("btnImportProyectoTrigger").onclick = () => inputImport.click();
+  inputImport.onchange = () => {
+    const f = inputImport.files && inputImport.files[0];
+    inputImport.value = "";
+    importarProyecto(f);
+  };
 }
 
 const ESTILOS_CITA = ["APA","ACS","Vancouver"];
@@ -1850,6 +2009,214 @@ function formatCitation(r, i, estilo){
   }
   // APA por defecto (autor-fecha). El [n] va como localizador para conectar con los borradores.
   return `[${n}] ${autores} (${anio}). ${titulo}.${revista?` ${revista}.`:""}${doiTxt}`;
+}
+
+/* ============ INTEROPERABILIDAD: SACAR EL CORPUS DE LA APP ============ */
+// Un corpus curado que no se puede llevar a un gestor de referencias obliga a volver a
+// teclearlo todo. Estos exportadores son formateo puro de los metadatos reales que ya
+// estan en el estado: no llaman a la IA y no pueden inventar nada.
+
+function descargarArchivo(nombre, contenido, mime){
+  const blob = new Blob([contenido], {type: (mime||"text/plain") + ";charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = nombre;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+
+// Nombre de archivo seguro a partir del tema del proyecto.
+function slugProyecto(){
+  const base = (state.idea.tema || "proyecto").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+  return base || "proyecto";
+}
+
+// Autores de una referencia como lista de personas. Prefiere SIEMPRE la lista estructurada
+// que entrego la base de datos; solo cae al heuristico de partir la cadena cuando la
+// referencia se escribio a mano y no hay lista.
+function autoresDeRef(r){
+  if(r && Array.isArray(r.autores_lista) && r.autores_lista.length) return r.autores_lista.slice();
+  return partirAutores(r && r.autores);
+}
+
+// Heuristico de ultimo recurso para referencias escritas a mano. Partir por comas es
+// ambiguo: "Silva, João" puede ser un autor en formato "Apellido, Nombre" o dos autores.
+// Se resuelve a favor de un solo autor cuando hay una sola coma y ambos lados son cortos,
+// que es el caso abrumadoramente mas comun al teclear una cita.
+function partirAutores(autores){
+  const txt = String(autores || "").trim();
+  if(!txt) return [];
+  if(txt.includes(";")){
+    return txt.split(";").map(a=>a.trim()).filter(a=>a && !/^et\.?\s*al\.?$/i.test(a));
+  }
+  const comas = (txt.match(/,/g) || []).length;
+  if(comas === 1){
+    const [a, b] = txt.split(",").map(x=>x.trim());
+    const corto = (s)=>s && s.split(/\s+/).length <= 3;
+    if(corto(a) && corto(b) && !/^et\.?\s*al\.?$/i.test(b)) return [txt];
+  }
+  return txt.split(/,(?![^(]*\))/).map(a=>a.trim()).filter(a=>a && !/^et\.?\s*al\.?$/i.test(a));
+}
+
+function escaparBibtex(v){
+  return String(v || "").replace(/[{}\\]/g, "").replace(/\s+/g, " ").trim();
+}
+
+// Clave de cita estable y legible: primerapellido + anio + primera palabra del titulo.
+function claveBibtex(r, i){
+  const autores = autoresDeRef(r);
+  const apellido = autores.length
+    ? autores[0].split(",")[0].split(/\s+/).pop()
+    : "anon";
+  const palabra = String(r.titulo || "").split(/\s+/).find(w=>w.length > 3) || "ref";
+  const limpia = (s)=>String(s).toLowerCase().normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+  return (limpia(apellido) || "anon") + (r.anio || "sf") + (limpia(palabra) || String(i+1));
+}
+
+function toBibTeX(refs){
+  return refs.map((r,i)=>{
+    const campos = [];
+    campos.push(["title", escaparBibtex(r.titulo)]);
+    const autores = autoresDeRef(r);
+    if(autores.length) campos.push(["author", autores.map(escaparBibtex).join(" and ")]);
+    if(r.anio) campos.push(["year", escaparBibtex(r.anio)]);
+    if(r.revista) campos.push(["journal", escaparBibtex(r.revista)]);
+    const doi = normalizeDoi(r.doi);
+    if(doi) campos.push(["doi", doi]);
+    const u = refUrl(r);
+    if(u && !doi) campos.push(["url", u]);
+    if(r.resumen) campos.push(["abstract", escaparBibtex(r.resumen)]);
+    // Nota interna: de donde salio y como se clasifico, para no perder la curaduria.
+    if(r.fuente) campos.push(["note", escaparBibtex("Encontrado via " + r.fuente + (r.perspectiva ? "; componente: " + r.perspectiva : ""))]);
+    const cuerpo = campos.map(([k,v])=>`  ${k} = {${v}}`).join(",\n");
+    return `@article{${claveBibtex(r,i)},\n${cuerpo}\n}`;
+  }).join("\n\n") + "\n";
+}
+
+function toRIS(refs){
+  return refs.map(r=>{
+    const l = [];
+    l.push("TY  - JOUR");
+    autoresDeRef(r).forEach(a=>l.push("AU  - " + a));
+    if(r.titulo) l.push("TI  - " + r.titulo);
+    if(r.anio) l.push("PY  - " + r.anio);
+    if(r.revista) l.push("JO  - " + r.revista);
+    if(r.resumen) l.push("AB  - " + String(r.resumen).replace(/\r?\n/g, " "));
+    const doi = normalizeDoi(r.doi);
+    if(doi) l.push("DO  - " + doi);
+    const u = refUrl(r);
+    if(u) l.push("UR  - " + u);
+    if(r.fuente) l.push("DB  - " + r.fuente);
+    l.push("ER  - ");
+    return l.join("\r\n");
+  }).join("\r\n\r\n") + "\r\n";
+}
+
+function celdaCsv(v){
+  const t = String(v == null ? "" : v).replace(/\r?\n/g, " ");
+  return /[",;]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+
+function toCSV(refs){
+  const cabeceras = ["n","titulo","autores","anio","revista","doi","url","tipo_doc","acceso_abierto","citas","fuente_base","componente","ajuste","estado","aporte_a_mi_investigacion","resumen"];
+  const filas = refs.map((r,i)=>[
+    i+1, r.titulo, r.autores, r.anio, r.revista, normalizeDoi(r.doi), refUrl(r), r.tipo_doc,
+    // "no se sabe" cuando la base no informa acceso abierto, en vez de un falso "no".
+    (r.oa === true ? "si" : r.oa === false ? "no" : "no se sabe"),
+    (typeof r.citas === "number" ? r.citas : ""),
+    r.fuente, r.perspectiva, r.fuerza, r.estado, r.justificacion, r.resumen
+  ].map(celdaCsv).join(","));
+  // BOM para que Excel abra los acentos bien sin pedir nada al usuario.
+  return "\uFEFF" + [cabeceras.join(","), ...filas].join("\r\n") + "\r\n";
+}
+
+// Exporta las referencias aceptadas, o todas si aun no se acepto ninguna, para que el
+// boton nunca entregue un archivo vacio sin explicar por que.
+function refsParaExportar(){
+  const aceptadas = state.bibliografia.filter(r=>r.estado==="aceptada");
+  return aceptadas.length ? aceptadas : state.bibliografia.slice();
+}
+
+function exportarCorpus(formato){
+  const refs = refsParaExportar();
+  if(refs.length === 0){ alert("Todavía no tienes referencias en tu bibliografía."); return; }
+  const base = "biblioteca-viva-" + slugProyecto();
+  if(formato === "bibtex") descargarArchivo(base + ".bib", toBibTeX(refs), "application/x-bibtex");
+  else if(formato === "ris") descargarArchivo(base + ".ris", toRIS(refs), "application/x-research-info-systems");
+  else if(formato === "csv") descargarArchivo(base + ".csv", toCSV(refs), "text/csv");
+}
+
+/* ============ LLEVARSE EL PROYECTO COMPLETO ============ */
+// El progreso vive en localStorage, que es del navegador y del dispositivo: quien usa la
+// app por QR en el telefono y luego abre su laptop no encuentra nada. Esto lo hace
+// portable y respaldable, sin necesidad de cuentas ni de servidor.
+function exportarProyecto(){
+  const payload = {
+    _formato: "biblioteca-viva-proyecto",
+    _version: 1,
+    _exportado: new Date().toISOString(),
+    proyecto: state
+  };
+  descargarArchivo("biblioteca-viva-" + slugProyecto() + ".json", JSON.stringify(payload, null, 2), "application/json");
+}
+
+function importarProyecto(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let datos;
+    try{
+      datos = JSON.parse(String(reader.result));
+    }catch(e){
+      alert("Ese archivo no es un proyecto de Biblioteca Viva válido (no se pudo leer como JSON).");
+      return;
+    }
+    const p = datos && datos._formato === "biblioteca-viva-proyecto" ? datos.proyecto : datos;
+    // Validacion minima: tiene que parecerse a un proyecto, no a cualquier JSON.
+    if(!p || typeof p !== "object" || typeof p.idea !== "object" || !Array.isArray(p.bibliografia)){
+      alert("Ese archivo no parece un proyecto de Biblioteca Viva.");
+      return;
+    }
+    if(!confirm("Esto reemplazará el proyecto que tienes abierto ahora. ¿Continuar?")) return;
+    state = p;
+    migrateState();
+    saveState();
+    // Los resultados de busqueda son transitorios y pertenecen a la sesion anterior.
+    searchState = { activo: null, resultados: {}, error: {}, meta: {} };
+    searchControls = {};
+    render();
+  };
+  reader.onerror = () => alert("No se pudo leer el archivo.");
+  reader.readAsText(file);
+}
+
+/* ============ REGISTRO DE BUSQUEDA: PARRAFO DE METODOS ============ */
+// Convierte state.busquedas en un parrafo que se puede pegar en la seccion de metodos.
+// Es formateo de datos reales registrados, no una redaccion del modelo.
+function buildMetodosBusqueda(){
+  const bs = state.busquedas || [];
+  if(bs.length === 0) return "";
+  const fechas = bs.map(b=>String(b.fecha||"").slice(0,10)).filter(Boolean).sort();
+  const basesUsadas = new Set();
+  bs.forEach(b=>Object.entries(b.por_base||{}).forEach(([n,v])=>{ if(v !== null) basesUsadas.add(n); }));
+  const aceptadas = state.bibliografia.filter(r=>r.estado==="aceptada").length;
+  const rango = fechas.length && fechas[0] !== fechas[fechas.length-1]
+    ? `entre el ${fechas[0]} y el ${fechas[fechas.length-1]}`
+    : `el ${fechas[0] || "s.f."}`;
+  const conFiltroAnio = bs.filter(b=>b.filtros && b.filtros.desde_anio);
+  const anioMin = conFiltroAnio.length ? Math.min(...conFiltroAnio.map(b=>b.filtros.desde_anio)) : null;
+  const manuales = bs.filter(b=>b.query_origen === "manual").length;
+  return `La búsqueda bibliográfica se ejecutó ${rango} sobre ${[...basesUsadas].join(", ")}, ` +
+    `mediante ${bs.length} ${bs.length===1?"consulta":"consultas"} distribuidas en ${new Set(bs.map(b=>b.componente)).size} ` +
+    `${new Set(bs.map(b=>b.componente)).size===1?"componente":"componentes"} del trabajo` +
+    (manuales ? `, de las cuales ${manuales} ${manuales===1?"fue formulada":"fueron formuladas"} manualmente por el investigador` : "") +
+    (anioMin ? `, con un límite inferior de año de publicación de ${anioMin}` : "") +
+    `. Los resultados se deduplicaron por DOI y por título normalizado. ` +
+    `De los registros recuperados, ${state.bibliografia.length} se incorporaron a la bibliografía para cribado y ${aceptadas} se aceptaron como evidencia. ` +
+    `El detalle por consulta se conserva en el registro de búsqueda.`;
 }
 
 /* ============ FASE C: BORRADORES PARA PUBLICAR ============ */
@@ -1965,6 +2332,39 @@ function renderAuditoriaReport(){
   return `<div style="margin-bottom:10px;">${chips}</div>${filas}`;
 }
 
+// Registro de busqueda dentro del informe: la tabla de lo que realmente se busco, mas el
+// parrafo de metodos listo para pegar. Es lo que permite que otra persona (o el propio
+// investigador meses despues) reconstruya como se armo el corpus.
+function renderRegistroBusquedaReport(){
+  const bs = state.busquedas || [];
+  if(!bs.length) return `<p>No hay búsquedas registradas todavía.</p>`;
+  const filas = bs.map(b=>{
+    const bases = Object.entries(b.por_base||{})
+      .map(([n,v])=>`${n}: ${v===null?"no respondió":v}`).join("; ");
+    const f = b.filtros || {};
+    const filtros = [
+      f.desde_anio ? "desde " + f.desde_anio : "",
+      f.tipo === "revision" ? "solo revisiones" : (f.tipo === "primario" ? "sin revisiones" : "")
+    ].filter(Boolean).join(", ") || "ninguno";
+    return `<tr>
+      <td>${escapeHtml(String(b.fecha||"").slice(0,10))}</td>
+      <td>${escapeHtml(b.componente||"")}</td>
+      <td style="font-family:ui-monospace,Consolas,monospace;font-size:12px;">${escapeHtml(b.query||"")}${b.query_ampliada?`<br><span class="hint">ampliada: ${escapeHtml(b.query_ampliada)}</span>`:""}</td>
+      <td>${b.query_origen === "manual" ? "investigador" : "EugenIA"}</td>
+      <td>${escapeHtml(filtros)}</td>
+      <td>${escapeHtml(bases)}</td>
+      <td>${b.mostrados}</td>
+    </tr>`;
+  }).join("");
+  const metodos = buildMetodosBusqueda();
+  return `
+    <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+      <thead><tr><th>Fecha</th><th>Componente</th><th>Consulta</th><th>Origen</th><th>Filtros</th><th>Resultados por base</th><th>Mostrados</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table></div>
+    ${metodos ? `<div style="margin-top:14px;"><p><b>Párrafo de métodos, listo para adaptar:</b></p><p style="background:var(--soft);border-radius:10px;padding:12px 14px;">${escapeHtml(metodos)}</p></div>` : ""}`;
+}
+
 function showEvidenceReport(){
   const refs = state.bibliografia.filter(r=>r.estado==="aceptada");
   const synthesis = (state.sintesis||[]).map(h=>`
@@ -1990,6 +2390,16 @@ function showEvidenceReport(){
       <button class="btn btn-ghost" id="btnTextReport">Descargar texto</button>
       <button class="btn btn-primary" id="btnPrintReport">Imprimir / PDF</button>
     </div>
+    <div class="card" style="margin-bottom:14px;">
+      <h3 style="font-size:15px;margin:0 0 4px 0;">Llévate tu bibliografía</h3>
+      <p class="hint" style="margin:0 0 10px 0;">Exporta las ${refs.length ? refs.length + " referencias aceptadas" : "referencias"} a tu gestor de referencias o a una hoja de cálculo. Son tus metadatos reales, sin pasar por la IA.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="small-btn export-corpus" data-formato="bibtex" type="button" style="flex:1;min-width:110px;">BibTeX (.bib)</button>
+        <button class="small-btn export-corpus" data-formato="ris" type="button" style="flex:1;min-width:110px;">RIS (.ris)</button>
+        <button class="small-btn export-corpus" data-formato="csv" type="button" style="flex:1;min-width:110px;">Tabla (.csv)</button>
+      </div>
+      <p class="hint" style="margin:8px 0 0 0;">BibTeX y RIS los importan Zotero, Mendeley y EndNote. El CSV incluye el ajuste evaluado, el componente y tu justificación de cada fuente.</p>
+    </div>
     ${reportSection("Foco de investigación", `<p><b>Tema:</b> ${escapeHtml(state.idea.tema)}</p><p><b>Pregunta:</b> ${escapeHtml(state.pregunta.pregunta_principal)}</p><p><b>Objetivo:</b> ${escapeHtml(state.pregunta.objetivo_general)||"No definido"}</p>`)}
     ${reportSection("Síntesis de evidencia", synthesis)}
     ${reportSection("Matriz de Decisión", matrixHtml)}
@@ -1997,12 +2407,16 @@ function showEvidenceReport(){
     ${reportSection("Tus resultados", renderResultadosReport())}
     ${reportSection("Auditoría de defendibilidad", renderAuditoriaReport())}
     ${reportSection("Referencias aceptadas", `${estiloSelector}<ul style="list-style:none;padding-left:0;margin-top:12px;">${bibliography}</ul>`)}
+    ${reportSection("Registro de búsqueda", renderRegistroBusquedaReport())}
     <p class="hint">Análisis generado a partir de títulos y resúmenes disponibles. Debe verificarse contra los textos completos antes de publicación o toma de decisiones definitiva.</p>
   </main>`;
   document.querySelectorAll("th,td").forEach(el=>{el.style.border="1px solid #DCE5D5";el.style.padding="8px";el.style.textAlign="left";el.style.verticalAlign="top";});
   document.getElementById("btnBackReport").onclick = showSummary;
   document.getElementById("btnPrintReport").onclick = () => window.print();
   document.getElementById("btnTextReport").onclick = downloadEvidenceReport;
+  document.querySelectorAll(".export-corpus").forEach(b=>{
+    b.onclick = () => exportarCorpus(b.dataset.formato);
+  });
   const btnGenBorr = document.getElementById("btnGenBorradores");
   if(btnGenBorr) btnGenBorr.onclick = generarBorradores;
   const selEstilo = document.getElementById("citaEstilo");
@@ -2050,6 +2464,28 @@ function downloadEvidenceReport(){
   const estilo = ESTILOS_CITA.includes(state.citaEstilo) ? state.citaEstilo : "APA";
   lines.push("", `REFERENCIAS (${estilo})`);
   refs.forEach((r,i)=>lines.push(formatCitation(r,i,estilo)));
+  const bs = state.busquedas || [];
+  lines.push("", "REGISTRO DE BÚSQUEDA");
+  if(bs.length){
+    bs.forEach(b=>{
+      const bases = Object.entries(b.por_base||{})
+        .map(([n,v])=>`${n}: ${v===null?"no respondió":v}`).join("; ");
+      const f = b.filtros || {};
+      const filtros = [
+        f.desde_anio ? "desde " + f.desde_anio : "",
+        f.tipo === "revision" ? "solo revisiones" : (f.tipo === "primario" ? "sin revisiones" : "")
+      ].filter(Boolean).join(", ") || "ninguno";
+      lines.push(`\n${String(b.fecha||"").slice(0,10)} | ${b.componente}`);
+      lines.push(`Consulta (${b.query_origen === "manual" ? "investigador" : "EugenIA"}): ${b.query}`);
+      if(b.query_ampliada) lines.push(`Consulta ampliada: ${b.query_ampliada}`);
+      lines.push(`Filtros: ${filtros}`);
+      lines.push(`Resultados por base: ${bases} | mostrados: ${b.mostrados}`);
+    });
+    const metodos = buildMetodosBusqueda();
+    if(metodos) lines.push("", "Párrafo de métodos, listo para adaptar:", metodos);
+  } else {
+    lines.push("No hay búsquedas registradas.");
+  }
   lines.push("", "Nota: análisis basado en títulos y resúmenes disponibles; verificar con los textos completos.");
   const blob = new Blob([lines.join("\n")], {type:"text/plain;charset=utf-8"});
   const a = document.createElement("a");
